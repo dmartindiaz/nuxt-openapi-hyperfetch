@@ -1,27 +1,43 @@
-# ?? Nuxt Generator
+﻿# 🚀 Nuxt OpenAPI Generator
 
 **Generate type-safe, SSR-compatible Nuxt composables from OpenAPI/Swagger specifications.**
 
-Transform your API documentation into production-ready Nuxt 3 composables with full TypeScript support, lifecycle callbacks, and request interception�all in a single command.
+Transform your API documentation into production-ready Nuxt 3 composables with full TypeScript support, lifecycle callbacks, and request interception—all in a single command.
 
 ---
 
-## ? Features
+## ✨ Features
 
-- ?? **Type-Safe**: Full TypeScript support derived from your OpenAPI schema
-- ? **SSR Compatible**: Works seamlessly with Nuxt server-side rendering
-- ?? **Lifecycle Callbacks**: `onRequest`, `onSuccess`, `onError`, `onFinish`
-- ?? **Global Callbacks Plugin**: Define callbacks once, apply to all requests (with 3 control options)
-- ??? **Request Interception**: Modify headers, body, and query params before sending
-- ?? **Smart Data Selection**: Pick specific fields with dot notation for nested paths
-- ? **Auto Type Inference**: Transform response data with automatic TypeScript type inference
-- ?? **Automatic Generation**: Single command generates all API composables
-- ?? **Zero Runtime Dependencies**: Generated code only uses Nuxt built-ins
-- ?? **Developer Experience**: Interactive CLI with smart defaults
+- 🔒 **Type-Safe**: Full TypeScript support derived from your OpenAPI schema
+- ⚡ **SSR Compatible**: Works seamlessly with Nuxt server-side rendering
+- 🔄 **Lifecycle Callbacks**: `onRequest`, `onSuccess`, `onError`, `onFinish`
+- 🌐 **Global Callbacks Plugin**: Define callbacks once, apply to all requests (with 3 control options)
+- 🛡️ **Request Interception**: Modify headers, body, and query params before sending
+- 🎯 **Smart Data Selection**: Pick specific fields with dot notation for nested paths
+- 🤖 **Auto Type Inference**: Transform response data with automatic TypeScript type inference
+- ⚡ **Automatic Generation**: Single command generates all API composables
+- 📦 **Zero Runtime Dependencies**: Generated code only uses Nuxt built-ins
+- 💡 **Developer Experience**: Interactive CLI with smart defaults
 
 ---
 
-## ?? Installation
+## 🔧 Generator Backends
+
+Two generation backends are available. The CLI will ask you to choose one when running `nxh generate`:
+
+| Backend | Tool | Requires Java | Best for |
+|---------|------|:---:|----------|
+| **official** | [@openapitools/openapi-generator-cli](https://openapi-generator.tech/) | ✅ Yes (11+) | Maximum spec compatibility, enterprise projects |
+| **heyapi** | [@hey-api/openapi-ts](https://heyapi.dev/) | ❌ No | Quick setup, CI/CD pipelines, Node-only environments |
+
+- **official** — Wraps the battle-tested Java-based [OpenAPI Generator](https://openapi-generator.tech/). Requires [Java 11+](https://adoptium.net).
+- **heyapi** — Pure Node.js via [@hey-api/openapi-ts](https://heyapi.dev/). No Java needed — perfect for CI/CD pipelines and environments where installing Java is not practical.
+
+> The CLI checks for Java automatically when `official` is selected and aborts with an install link if it's not found.
+
+---
+
+## 📦 Installation
 
 ```bash
 npm install -g nuxt-openapi-hyperfetch
@@ -39,7 +55,7 @@ nxh generate
 
 ---
 
-## ?? Quick Start
+## 🚀 Quick Start
 
 ### 1. Generate API Composables
 
@@ -51,9 +67,9 @@ nxh generate
 
 The CLI will ask you:
 
-- ?? Path to your OpenAPI/Swagger file
-- ?? Output directory for generated files
-- ? Which composables to generate (useFetch, useAsyncData, TanStack Query)
+- 📂 Path to your OpenAPI/Swagger file
+- 📁 Output directory for generated files
+- ✅ Which composables to generate (useFetch, useAsyncData, TanStack Query)
 
 **Option B: With Arguments** (For automation/scripts)
 
@@ -65,7 +81,7 @@ Then select which composables to generate from the interactive prompt.
 
 ---
 
-## ?? Usage
+## 🛠️ Usage
 
 ### CLI Commands
 
@@ -102,27 +118,27 @@ This generates:
 api/
 +-- runtime.ts
 +-- apis/
-�   +-- PetApi.ts
-�   +-- StoreApi.ts
-�   +-- UserApi.ts
+│   +-- PetApi.ts
+│   +-- StoreApi.ts
+│   +-- UserApi.ts
 +-- models/
-�   +-- Pet.ts
-�   +-- Order.ts
-�   +-- User.ts
+│   +-- Pet.ts
+│   +-- Order.ts
+│   +-- User.ts
 +-- composables/
     +-- use-fetch/
         +-- runtime/
-        �   +-- useApiRequest.ts
+        │   +-- useApiRequest.ts
         +-- composables/
-        �   +-- useFetchAddPet.ts
-        �   +-- useFetchGetPetById.ts
-        �   +-- ...
+        │   +-- useFetchAddPet.ts
+        │   +-- useFetchGetPetById.ts
+        │   +-- ...
         +-- index.ts
 ```
 
 ---
 
-## ?? Using Generated Composables
+## 💻 Using Generated Composables
 
 ### Basic Example
 
@@ -203,7 +219,7 @@ const { data: pets } = useFetchFindPetsByStatus(
 
 ---
 
-## ? Enhanced Callbacks
+## ✨ Enhanced Callbacks
 
 All generated composables support powerful lifecycle callbacks:
 
@@ -347,7 +363,7 @@ const { data } = useFetchAddPet(
 
 ---
 
-## ? Global Callbacks Plugin
+## 🌐 Global Callbacks Plugin
 
 Tired of repeating the same `onSuccess`, `onError`, `onRequest` callbacks across all your API calls? **Global Callbacks** let you define callbacks once that automatically apply to all requests.
 
@@ -357,7 +373,7 @@ Without global callbacks, you must repeat the same code everywhere:
 
 ```vue
 <script setup lang="ts">
-// Every single API call needs auth, error handling, and toasts... ??
+// Every single API call needs auth, error handling, and toasts... 😩
 const { data: pet } = useFetchGetPetById(
   { petId: 123 },
   {
@@ -384,7 +400,7 @@ const { data: pets } = useFetchFindPetsByStatus(
   }
 );
 
-// ... and 50 more times ??
+// ... and 50 more times 😫
 </script>
 ```
 
@@ -393,7 +409,7 @@ const { data: pets } = useFetchFindPetsByStatus(
 When you generate composables, a **plugin template** is automatically created at:
 
 ```
-plugins/api-callbacks.ts  (?? ONLY CREATED ONCE, never regenerated)
+plugins/api-callbacks.ts  (🔒 ONLY CREATED ONCE, never regenerated)
 ```
 
 Configure your global callbacks **once**, and they'll apply to **all** API requests:
@@ -407,7 +423,7 @@ export default defineNuxtPlugin(() => {
   return {
     provide: {
       getGlobalApiCallbacks: () => ({
-        // ? Runs before every request
+        // ✅ Runs before every request
         onRequest: (ctx) => {
           console.log(`[API] ${ctx.method} ${ctx.url}`);
 
@@ -420,12 +436,12 @@ export default defineNuxtPlugin(() => {
           }
         },
 
-        // ? Runs after every successful request
+        // ✅ Runs after every successful request
         onSuccess: (data, ctx) => {
           showToast('Success!', 'success');
         },
 
-        // ? Runs after every failed request
+        // ✅ Runs after every failed request
         onError: (error, ctx) => {
           if (error.status === 401) {
             showToast('Please login', 'warning');
@@ -435,7 +451,7 @@ export default defineNuxtPlugin(() => {
           }
         },
 
-        // ? Runs after every request (success or error)
+        // ✅ Runs after every request (success or error)
         onFinish: (ctx) => {
           console.log(`[API] Request completed in ${ctx.duration}ms`);
         },
@@ -449,18 +465,18 @@ Now **all your API calls** automatically include auth, error handling, and toast
 
 ```vue
 <script setup lang="ts">
-// ? Auth header added automatically
-// ? 401 errors handled automatically
-// ? Success toast shown automatically
+// ✅ Auth header added automatically
+// ✅ 401 errors handled automatically
+// ✅ Success toast shown automatically
 const { data: pet } = useFetchGetPetById({ petId: 123 });
 
 const { data: pets } = useFetchFindPetsByStatus({ status: 'available' });
 
-// No repetition! ??
+// No repetition! 🎉
 </script>
 ```
 
-### ??? Three Ways to Control Global Callbacks
+### 🎛️ Three Ways to Control Global Callbacks
 
 But what if you need to disable global callbacks for a specific request? You have **three options**:
 
@@ -497,7 +513,7 @@ export default defineNuxtPlugin(() => {
 
           // Return false to prevent local onError callbacks
           if (error.status >= 500) {
-            return false; // ?? Local onError won't run for 5xx errors
+            return false; // 👻 Local onError won't run for 5xx errors
           }
         },
       }),
@@ -512,8 +528,8 @@ const { data } = useFetchGetPet(
   { petId: 123 },
   {
     onError: (error) => {
-      // ? This runs for 4xx errors (400, 401, 404, etc.)
-      // ? This DOESN'T run for 5xx errors (global returned false)
+      // ✅ This runs for 4xx errors (400, 401, 404, etc.)
+      // ❌ This DOESN'T run for 5xx errors (global returned false)
       console.log('Local error handler');
     },
   }
@@ -558,7 +574,7 @@ export default defineNuxtPlugin(() => {
 - `*` matches a single segment: `/api/users/*/posts` matches `/api/users/123/posts` but not `/api/users/123/comments/456`
 - No pattern = applies to all requests
 
-### ?? Execution Order
+### 📋 Execution Order
 
 When both global and local callbacks are defined:
 
@@ -583,7 +599,7 @@ const { data } = useFetchGetPet(
 </script>
 ```
 
-### ?? Common Patterns
+### 💡 Common Patterns
 
 #### Pattern 1: Global Auth + Error Handling
 
@@ -678,16 +694,16 @@ const { $isApiLoading } = useNuxtApp();
 </template>
 ```
 
-### ?? Plugin Safety
+### 🔒 Plugin Safety
 
-- ? Created **only once** when generating composables
-- ? **Never regenerated** - your customizations are safe
-- ? Works with **all composable types** (useFetch, useAsyncData, TanStack Query)
-- ? **100% optional** - works without the plugin (backward compatible)
+- ✅ Created **only once** when generating composables
+- ✅ **Never regenerated** - your customizations are safe
+- ✅ Works with **all composable types** (useFetch, useAsyncData, TanStack Query)
+- ✅ **100% optional** - works without the plugin (backward compatible)
 
 ---
 
-## ??? Real-World Examples
+## 🌍 Real-World Examples
 
 ### 1. Authentication Flow
 
@@ -936,7 +952,7 @@ const { data: pet } = useFetchGetPetById(
 
 ---
 
-## ??? Advanced Usage
+## 🔧 Advanced Usage
 
 ### Combining with useFetch Options
 
@@ -1004,10 +1020,10 @@ export const useApiHeaders = () => {
 **That's it!** All generated composables will automatically include these headers:
 
 ```typescript
-// ? Automatically includes Authorization header
+// ✅ Automatically includes Authorization header
 const { data } = useFetchGetPet({ petId: 123 });
 
-// ? You can still override or add more headers per request
+// ✅ You can still override or add more headers per request
 const { data: pet } = useFetchAddPet(
   { pet: newPet },
   {
@@ -1059,10 +1075,10 @@ export {};
 
 **Priority order** (later overrides earlier):
 
-1. ?? Global headers from `useApiHeaders()` composable
-2. ?? Global headers from `$getApiHeaders` plugin
-3. ?? Headers passed in composable options
-4. ?? Headers modified in `onRequest` callback
+1. 🌍 Global headers from `useApiHeaders()` composable
+2. 🔌 Global headers from `$getApiHeaders` plugin
+3. 📝 Headers passed in composable options
+4. 🔄 Headers modified in `onRequest` callback
 
 ```typescript
 // All of these are merged:
@@ -1079,15 +1095,15 @@ const { data } = useFetchGetPet(
 
 **Benefits:**
 
-- ? No need to repeat auth code in every request
-- ? Reactive - token updates automatically apply
-- ? Can use both methods together (headers are merged)
-- ? Easy to disable (just don't create the file)
-- ? Per-request override still possible
+- ✅ No need to repeat auth code in every request
+- ✅ Reactive - token updates automatically apply
+- ✅ Can use both methods together (headers are merged)
+- ✅ Easy to disable (just don't create the file)
+- ✅ Per-request override still possible
 
 ---
 
-## ? useAsyncData Generator
+## ⚡ useAsyncData Generator
 
 In addition to `useFetch`, you can generate composables based on Nuxt's `useAsyncData`. This is particularly useful when you need more control over data fetching or want to access response headers.
 
@@ -1095,11 +1111,11 @@ In addition to `useFetch`, you can generate composables based on Nuxt's `useAsyn
 
 | Feature                     | useFetch          | useAsyncData                                |
 | --------------------------- | ----------------- | ------------------------------------------- |
-| **Automatic fetching**      | ? Yes            | ? Yes (configurable)                       |
-| **SSR support**             | ? Yes            | ? Yes                                      |
-| **Request deduplication**   | ? Yes            | ? Yes                                      |
-| **Response headers access** | ? No             | ? Yes (Raw version)                        |
-| **HTTP status access**      | ? No             | ? Yes (Raw version)                        |
+| **Automatic fetching**      | ✅ Yes            | ✅ Yes (configurable)                       |
+| **SSR support**             | ✅ Yes            | ✅ Yes                                      |
+| **Request deduplication**   | ✅ Yes            | ✅ Yes                                      |
+| **Response headers access** | ❌ No             | ✅ Yes (Raw version)                        |
+| **HTTP status access**      | ❌ No             | ✅ Yes (Raw version)                        |
 | **Use case**                | Simple REST calls | Advanced scenarios with header/status needs |
 
 ### Dual Composables: Normal + Raw
@@ -1133,7 +1149,7 @@ const {
 </script>
 ```
 
-### ?? Accessing Response Headers (Raw Version)
+### 📡 Accessing Response Headers (Raw Version)
 
 The Raw version is perfect for scenarios where you need response metadata:
 
@@ -1176,7 +1192,7 @@ const isSuccessful = computed(() => response.value?.status === 200);
 </template>
 ```
 
-### ?? Enhanced Callbacks with Raw Responses
+### 🔧 Enhanced Callbacks with Raw Responses
 
 All callback features work with both normal and Raw versions:
 
@@ -1242,7 +1258,7 @@ const { data: response } = useAsyncDataGetPetByIdRaw(
 );
 ```
 
-### ?? Transform and Pick (Works with Raw)
+### 🔄 Transform and Pick (Works with Raw)
 
 Transform and pick operations apply **only to the data**, not the full response:
 
@@ -1276,7 +1292,7 @@ const { data: response } = useAsyncDataGetPetByIdRaw(
 // }
 ```
 
-### ?? Real-World Example: Authentication with Token Refresh
+### 🌍 Real-World Example: Authentication with Token Refresh
 
 ```vue
 <script setup lang="ts">
@@ -1339,7 +1355,7 @@ const handleLogin = () => {
 </script>
 ```
 
-### ?? Lazy Loading with useAsyncData
+### ⏳ Lazy Loading with useAsyncData
 
 Unlike `useFetch`, `useAsyncData` provides more control over when data is fetched:
 
@@ -1378,7 +1394,7 @@ watch(showInventory, (show) => {
 </script>
 ```
 
-### ?? File Downloads with Headers
+### 📥 File Downloads with Headers
 
 ```vue
 <script setup lang="ts">
@@ -1421,7 +1437,7 @@ const handleDownload = () => {
 </script>
 ```
 
-### ?? Comparing Both Generators
+### 📊 Comparing Both Generators
 
 **When to use useFetch:**
 
@@ -1449,21 +1465,21 @@ swagger/
 +-- composables/
     +-- use-async-data/
         +-- composables/
-        �   +-- useAsyncDataGetPetById.ts      # Normal version
-        �   +-- useAsyncDataGetPetByIdRaw.ts   # Raw version (if xxxRaw exists)
-        �   +-- useAsyncDataAddPet.ts
-        �   +-- useAsyncDataAddPetRaw.ts
-        �   +-- ... (all API methods)
+        │   +-- useAsyncDataGetPetById.ts      # Normal version
+        │   +-- useAsyncDataGetPetByIdRaw.ts   # Raw version (if xxxRaw exists)
+        │   +-- useAsyncDataAddPet.ts
+        │   +-- useAsyncDataAddPetRaw.ts
+        │   +-- ... (all API methods)
         +-- runtime/
-        �   +-- useApiAsyncData.ts      # Normal wrapper
-        �   +-- useApiAsyncDataRaw.ts   # Raw wrapper
+        │   +-- useApiAsyncData.ts      # Normal wrapper
+        │   +-- useApiAsyncDataRaw.ts   # Raw wrapper
         +-- shared/
-        �   +-- runtime/
-        �       +-- apiHelpers.ts       # Shared helper functions
+        │   +-- runtime/
+        │       +-- apiHelpers.ts       # Shared helper functions
         +-- index.ts                     # Exports all composables
 ```
 
-### ?? Global Headers (Works with useAsyncData)
+### 🌐 Global Headers (Works with useAsyncData)
 
 Just like `useFetch`, `useAsyncData` supports automatic global headers:
 
@@ -1480,14 +1496,14 @@ export const useApiHeaders = () => {
 
 // All useAsyncData composables will automatically include these headers
 const { data } = useAsyncDataGetPetById({ petId: 123 });
-// Request includes Authorization header automatically ?
+// Request includes Authorization header automatically ✅
 ```
 
 ---
 
 ---
 
-## ??? Nuxt Server Routes Generator
+## 🖥️ Nuxt Server Routes Generator
 
 In addition to client-side composables (`useFetch`, `useAsyncData`), you can generate **Nuxt Server Routes** that act as backend proxies to your external API. This approach provides several benefits for production applications.
 
@@ -1495,30 +1511,30 @@ In addition to client-side composables (`useFetch`, `useAsyncData`), you can gen
 
 | Benefit                | Description                                                                |
 | ---------------------- | -------------------------------------------------------------------------- |
-| ?? **Security**        | API keys and secrets stay server-side, never exposed to clients            |
-| ?? **CORS**            | Bypass CORS restrictions - your Nuxt server handles the external API calls |
-| ?? **Request Control** | Add rate limiting, caching, logging, or data transformation on the server  |
-| ?? **Single Source**   | All API logic in one place, easier to maintain and test                    |
-| ? **Performance**     | Cache responses server-side, reduce client bundle size                     |
+| 🔒 **Security**        | API keys and secrets stay server-side, never exposed to clients            |
+| 🌐 **CORS**            | Bypass CORS restrictions - your Nuxt server handles the external API calls |
+| ⚙️ **Request Control** | Add rate limiting, caching, logging, or data transformation on the server  |
+| 📁 **Single Source**   | All API logic in one place, easier to maintain and test                    |
+| ⚡ **Performance**     | Cache responses server-side, reduce client bundle size                     |
 
 ### How It Works
 
 ```
 Client (Browser)          Nuxt Server              External API
-     �                         �                         �
-     �  useFetch('/api/pet/123')                        �
-     +------------------------>�                         �
-     �                         �  `$`fetch(backend + '/pet/123')
-     �                         +------------------------>�
-     �                         �                         �
-     �                         �<------------------------�
-     �<------------------------�                         �
-     �      Pet data           �                         �
+     │                         │                         │
+     │  useFetch('/api/pet/123')                        │
+     +------------------------>│                         │
+     │                         │  `$`fetch(backend + '/pet/123')
+     │                         +------------------------>│
+     │                         │                         │
+     │                         │<------------------------│
+     │<------------------------│                         │
+     │      Pet data           │                         │
 ```
 
 The generated server routes are standard Nuxt server endpoints that proxy requests to your backend API.
 
-### ?? Generated File Structure
+### 📁 Generated File Structure
 
 When you select `Nuxt Server Routes` during generation and choose a path (e.g., `server/api`):
 
@@ -1526,24 +1542,24 @@ When you select `Nuxt Server Routes` during generation and choose a path (e.g., 
 server/
 +-- api/
     +-- pet/
-    �   +-- index.get.ts              # GET /api/pet
-    �   +-- index.post.ts             # POST /api/pet
-    �   +-- [id].get.ts               # GET /api/pet/{id}
-    �   +-- [id].put.ts               # PUT /api/pet/{id}
-    �   +-- [id].delete.ts            # DELETE /api/pet/{id}
-    �   +-- [id]/
-    �       +-- uploadImage.post.ts   # POST /api/pet/{id}/uploadImage
+    │   +-- index.get.ts              # GET /api/pet
+    │   +-- index.post.ts             # POST /api/pet
+    │   +-- [id].get.ts               # GET /api/pet/{id}
+    │   +-- [id].put.ts               # PUT /api/pet/{id}
+    │   +-- [id].delete.ts            # DELETE /api/pet/{id}
+    │   +-- [id]/
+    │       +-- uploadImage.post.ts   # POST /api/pet/{id}/uploadImage
     +-- store/
-    �   +-- inventory.get.ts          # GET /api/store/inventory
+    │   +-- inventory.get.ts          # GET /api/store/inventory
     +-- user/
-    �   +-- [username].get.ts         # GET /api/user/{username}
-    �   +-- login.get.ts              # GET /api/user/login
+    │   +-- [username].get.ts         # GET /api/user/{username}
+    │   +-- login.get.ts              # GET /api/user/login
     +-- _routes.ts                    # Documentation file (auto-generated)
 ```
 
-### ?? Configuration Required
+### ⚙️ Configuration Required
 
-**?? IMPORTANT**: After generation, you **MUST** configure your backend URL for the server routes to work.
+**⚠️ IMPORTANT**: After generation, you **MUST** configure your backend URL for the server routes to work.
 
 #### Step 1: Create `.env` file
 
@@ -1575,12 +1591,12 @@ export default defineNuxtConfig({
 });
 ```
 
-**?? Security Note**: Both `apiSecret` and `apiBaseUrl` are **private** (not in `public`). This means:
+**🔒 Security Note**: Both `apiSecret` and `apiBaseUrl` are **private** (not in `public`). This means:
 
-- ? They're only accessible on the server
-- ? Never exposed to the client or included in the browser bundle
-- ? The client only knows `/api/pet/123`, not your real backend URL
-- ? Enhanced security - your backend URL remains hidden
+- ✅ They're only accessible on the server
+- ✅ Never exposed to the client or included in the browser bundle
+- ✅ The client only knows `/api/pet/123`, not your real backend URL
+- ✅ Enhanced security - your backend URL remains hidden
 
 **Without this configuration, server routes will fail with "baseUrl is undefined".**
 
@@ -1594,7 +1610,7 @@ npm run dev
 
 Visit `http://localhost:3000/api/pet/1` - you should see data from your backend API.
 
-### ?? Using Generated Server Routes
+### 🚀 Using Generated Server Routes
 
 Once configured, use standard Nuxt `useFetch` or `$fetch` with `/api/*` endpoints:
 
@@ -1674,7 +1690,7 @@ const { data: pets } = useFetch('/api/pet/findByStatus', {
 </template>
 ```
 
-### ?? Security Best Practices
+### 🔒 Security Best Practices
 
 1. **Never expose API secrets to the client** - Use `runtimeConfig.apiSecret` (server-only)
 2. **Validate inputs** - Always validate request parameters and body
@@ -1682,46 +1698,46 @@ const { data: pets } = useFetch('/api/pet/findByStatus', {
 4. **Rate limiting** - Protect your backend from abuse
 5. **Error handling** - Don't leak sensitive error details to clients
 
-### ?? When to Use Server Routes vs Client Composables
+### 🤔 When to Use Server Routes vs Client Composables
 
 **Use Server Routes when:**
 
-- ? You need to hide API keys/secrets
-- ? You want to bypass CORS restrictions
-- ? You need server-side caching or rate limiting
-- ? You want to transform/sanitize data before sending to client
-- ? You're building a public-facing application
+- ✅ You need to hide API keys/secrets
+- ✅ You want to bypass CORS restrictions
+- ✅ You need server-side caching or rate limiting
+- ✅ You want to transform/sanitize data before sending to client
+- ✅ You're building a public-facing application
 
 **Use Client Composables when:**
 
-- ? You're building an internal dashboard
-- ? API is already CORS-enabled and public
-- ? You want faster development iteration
-- ? You don't need server-side logic
+- ✅ You're building an internal dashboard
+- ✅ API is already CORS-enabled and public
+- ✅ You want faster development iteration
+- ✅ You don't need server-side logic
 
 **You can use both!** Server routes for sensitive operations, client composables for read-only public data.
 
-### ?? Backend for Frontend (BFF) with Transformers
+### 🏗️ Backend for Frontend (BFF) with Transformers
 
-The generator can optionally create a **Backend for Frontend (BFF) layer** that adds business logic, authentication, and data transformation to your server routes�without editing generated files.
+The generator can optionally create a **Backend for Frontend (BFF) layer** that adds business logic, authentication, and data transformation to your server routes│without editing generated files.
 
 #### What is BFF?
 
 BFF is an architectural pattern where you add a custom logic layer between your Nuxt server and the backend API:
 
 ```
-Client ? Server Route (generated) ? Transformer (your code) ? Backend API
+Client → Server Route (generated) → Transformer (your code) → Backend API
               ?
          Auth Context
 ```
 
 **Key Benefits:**
 
-- ? **Regeneration-Safe**: Your custom code is never overwritten
-- ? **Auth-Agnostic**: Works with any Nuxt auth module
-- ? **Type-Safe**: Full TypeScript support with IntelliSense
-- ? **Optional**: Routes work with or without BFF (automatic fallback)
-- ? **Modular**: Separate files for auth and business logic
+- ✅ **Regeneration-Safe**: Your custom code is never overwritten
+- ✅ **Auth-Agnostic**: Works with any Nuxt auth module
+- 🔒 **Type-Safe**: Full TypeScript support with IntelliSense
+- ✅ **Optional**: Routes work with or without BFF (automatic fallback)
+- ✅ **Modular**: Separate files for auth and business logic
 
 #### Enabling BFF
 
@@ -1733,40 +1749,40 @@ When generating Nuxt Server Routes, the CLI will ask:
 
 Select **Yes** to enable BFF features.
 
-#### ?? Generated BFF Structure
+#### 📁 Generated BFF Structure
 
 With BFF enabled, the generator creates this structure:
 
 ```
 server/
-  auth/                              ? Auth context (YOU customize)
-    context.ts                       ? Implement auth logic HERE
-    types.ts                         ? Auth types and helpers
-  api/                               ? Generated routes (DO NOT EDIT)
+  auth/                              🔐 Auth context (YOU customize)
+    context.ts                       ✏️ Implement auth logic HERE
+    types.ts                         📝 Auth types and helpers
+  api/                               ⚠️ Generated routes (DO NOT EDIT)
     pet/
-      [id].get.ts                    ? Calls transformPet() automatically
+      [id].get.ts                    🔄 Calls transformPet() automatically
       index.post.ts
   bff/
-    transformers/                    ? Business logic (YOU customize)
-      pet.ts                         ? Transform pet data
-      store.ts                       ? Transform store data
-      user.ts                        ? Transform user data
-    _transformers.example.ts         ? Examples (regenerated)
-    README.md                        ? BFF documentation
+    transformers/                    ⚙️ Business logic (YOU customize)
+      pet.ts                         🔄 Transform pet data
+      store.ts                       🔄 Transform store data
+      user.ts                        🔄 Transform user data
+    _transformers.example.ts         📖 Examples (regenerated)
+    README.md                        📚 BFF documentation
 ```
 
-**?? Which Files Are Safe to Edit?**
+**📋 Which Files Are Safe to Edit?**
 
 | File                                  | Safe to Edit? | Regenerated? | Purpose                  |
 | ------------------------------------- | ------------- | ------------ | ------------------------ |
-| `server/auth/context.ts`              | ? **YES**    | ? NO        | Your auth implementation |
-| `server/auth/types.ts`                | ? **YES**    | ? NO        | Custom auth types        |
-| `server/bff/transformers/*.ts`        | ? **YES**    | ? NO        | Your business logic      |
-| `server/api/**/*.ts`                  | ? **NO**     | ? YES       | Generated proxy routes   |
-| `server/bff/_transformers.example.ts` | ? **NO**     | ? YES       | Reference examples       |
-| `server/bff/README.md`                | ? **NO**     | ? YES       | Documentation            |
+| `server/auth/context.ts`              | ✅ **YES**    | ❌ NO        | Your auth implementation |
+| `server/auth/types.ts`                | ✅ **YES**    | ❌ NO        | Custom auth types        |
+| `server/bff/transformers/*.ts`        | ✅ **YES**    | ❌ NO        | Your business logic      |
+| `server/api/**/*.ts`                  | ❌ **NO**     | ✅ YES       | Generated proxy routes   |
+| `server/bff/_transformers.example.ts` | ❌ **NO**     | ✅ YES       | Reference examples       |
+| `server/bff/README.md`                | ❌ **NO**     | ✅ YES       | Documentation            |
 
-#### ?? Step 1: Implement Authentication
+#### 🔐 Step 1: Implement Authentication
 
 Edit `server/auth/context.ts` to implement your auth logic **once**. The generator provides examples for popular auth modules.
 
@@ -1859,7 +1875,7 @@ export async function getAuthContext(event: H3Event): Promise<AuthContext> {
 }
 ```
 
-#### ?? Step 2: Add Business Logic with Transformers
+#### 🔧 Step 2: Add Business Logic with Transformers
 
 Transformers receive data from the backend and can modify it before sending to the client. Each resource (pet, store, user) has its own transformer file.
 
@@ -1952,7 +1968,7 @@ export async function transformPet(
 
 ---
 
-## ?? Documentation
+## 📚 Documentation
 
 Comprehensive documentation is available in the `docs/` directory:
 
@@ -2009,7 +2025,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ---
 
-## ?? Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
 
@@ -2022,13 +2038,13 @@ Before contributing:
 
 ---
 
-## ?? License
+## 📄 License
 
 Apache-2.0 License - see [LICENSE](./LICENSE) file for details.
 
 ---
 
-## ?? Acknowledgments
+## 🙏 Acknowledgments
 
 Built with these amazing technologies:
 
@@ -2115,7 +2131,7 @@ export async function transformOrder(
 }
 ```
 
-#### ?? How Generated Routes Use BFF
+#### ⚙️ How Generated Routes Use BFF
 
 When BFF is enabled, generated routes automatically call transformers with fallback support:
 
@@ -2150,12 +2166,12 @@ export default defineEventHandler(async (event) => {
 
 **Key features:**
 
-- ? Works without auth implementation (returns `null`)
-- ? Works without transformer (returns raw data)
-- ? Fully type-safe with TypeScript
-- ? Zero runtime errors from missing files
+- ✅ Works without auth implementation (returns `null`)
+- ✅ Works without transformer (returns raw data)
+- ✅ Fully type-safe with TypeScript
+- ✅ Zero runtime errors from missing files
 
-#### ?? Regeneration Safety
+#### ✅ Regeneration Safety
 
 **Critical feature:** When you regenerate routes with the CLI:
 
@@ -2165,29 +2181,29 @@ nxh generate -i updated-swagger.yaml -o ./swagger
 
 **What happens:**
 
-- ? `server/api/**/*.ts` are **regenerated** (expected)
-- ? `server/auth/context.ts` is **preserved** (your auth code is safe!)
-- ? `server/auth/types.ts` is **preserved** (your types are safe!)
-- ? `server/bff/transformers/*.ts` are **preserved** (your logic is safe!)
-- ?? New transformers are created only if they don't exist
-- ?? Examples and docs are regenerated (for reference)
+- 🔄 `server/api/**/*.ts` are **regenerated** (expected)
+- ✅ `server/auth/context.ts` is **preserved** (your auth code is safe!)
+- ✅ `server/auth/types.ts` is **preserved** (your types are safe!)
+- ✅ `server/bff/transformers/*.ts` are **preserved** (your logic is safe!)
+- ✨ New transformers are created only if they don't exist
+- 🔄 Examples and docs are regenerated (for reference)
 
 **Console output shows what's preserved:**
 
 ```
-?? Generating BFF structure...
+🏗️ Generating BFF structure...
 
-   ??  Skipped: server/auth/context.ts (already exists)
-   ??  Skipped: server/auth/types.ts (already exists)
-   ??  Skipped: server/bff/transformers/pet.ts (already exists)
-   ? Created: server/bff/transformers/order.ts (customize this)
-   ?? Updated: server/bff/_transformers.example.ts (reference only)
-   ?? Updated: server/bff/README.md
+   ⏭️  Skipped: server/auth/context.ts (already exists)
+   ⏭️  Skipped: server/auth/types.ts (already exists)
+   ⏭️  Skipped: server/bff/transformers/pet.ts (already exists)
+   ✅ Created: server/bff/transformers/order.ts (customize this)
+   🔄 Updated: server/bff/_transformers.example.ts (reference only)
+   🔄 Updated: server/bff/README.md
 ```
 
 This ensures **your custom code is never lost** when updating your API.
 
-#### ?? Best Practices
+#### 💡 Best Practices
 
 1. **Keep Transformers Pure**
    - Focus on data transformation, not side effects
@@ -2271,7 +2287,7 @@ This ensures **your custom code is never lost** when updating your API.
    if (cached) return cached;
    ```
 
-#### ?? Troubleshooting BFF
+#### 🐛 Troubleshooting BFF
 
 **Problem**: Transformer not being called
 
@@ -2305,7 +2321,7 @@ This ensures **your custom code is never lost** when updating your API.
 - Only edit `server/auth/` and `server/bff/transformers/`
 - Check console output - it shows which files are skipped
 
-#### ?? More Examples
+#### 📖 More Examples
 
 For comprehensive examples of transformer patterns, see the generated file:
 
@@ -2331,7 +2347,7 @@ server/bff/README.md
 
 ---
 
-## ?? API Reference
+## 📋 API Reference
 
 ### Generated Composable Signature
 
@@ -2397,11 +2413,11 @@ pick: ['person.name', 'person.email', 'company.address.city'];
 // Result maintains structure: { person: { name, email }, company: { address: { city } } }
 ```
 
-**Execution Order**: `API Response` ? `pick` ? `transform` ? `onSuccess` ? `data ref`
+**Execution Order**: `API Response` → `pick` → `transform` → `onSuccess` → `data ref`
 
 ---
 
-## ?? TypeScript Support
+## 🔒 TypeScript Support
 
 All generated composables are fully typed:
 
@@ -2421,14 +2437,14 @@ const { data } = useFetchAddPet(params);
 // Callbacks receive typed parameters
 onSuccess: (pet) => {
   // pet is typed as Pet
-  pet.name; // ? Autocomplete works
-  pet.status; // ? Type-safe
+  pet.name; // ✅ Autocomplete works
+  pet.status; // ✅ Type-safe
 };
 ```
 
 ---
 
-## ?? Example OpenAPI File
+## 📄 Example OpenAPI File
 
 ```yaml
 openapi: 3.0.0
@@ -2484,7 +2500,7 @@ components:
 
 ---
 
-## ?? Troubleshooting
+## 🔧 Troubleshooting
 
 ### "Cannot find module '@/api/composables/use-fetch'"
 
@@ -2514,13 +2530,13 @@ Select the composables you want to regenerate.
 
 ---
 
-## ?? License
+## 📄 License
 
 MIT
 
 ---
 
-## ?? Contributing
+## 🤝 Contributing
 
 We welcome contributions! Whether it's bug reports, feature requests, or code contributions, all are appreciated.
 
@@ -2551,4 +2567,4 @@ npm run generator
 
 ---
 
-**Made with ?? for Nuxt developers**
+**Made with ❤️ for Nuxt developers**
