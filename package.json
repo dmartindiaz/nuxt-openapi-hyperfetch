@@ -1,0 +1,65 @@
+{
+  "name": "nuxt-openapi-hyperfetch",
+  "version": "1.0.0",
+  "description": "Nuxt useFetch, useAsyncData and Nuxt server OpenAPI generator",
+  "type": "module",
+  "author": "",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "docs",
+    "src",
+    ".editorconfig",
+    ".prettierignore",
+    ".prettierrc.json",
+    "CONTRIBUTING.md",
+    "eslint.config.js",
+    "index.ts",
+    "INSTRUCTIONS.md",
+    "LICENSE",
+    "README.md",
+    "tsconfig.json"
+  ],
+  "bin": {
+    "nxh": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "tsc && node ./dist/index.js",
+    "generator": "nxh generate -i ./swagger.yaml -o ./swagger",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"**/*.{ts,json,md,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{ts,json,md,yaml,yml}\"",
+    "type-check": "tsc --noEmit",
+    "validate": "npm run type-check && npm run lint && npm run format:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/gradient-string": "^1.1.6",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.1"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0",
+    "@hey-api/openapi-ts": "0.94.4",
+    "@openapitools/openapi-generator-cli": "2.30.2",
+    "change-case": "^5.4.4",
+    "commander": "^14.0.3",
+    "fs-extra": "^11.3.4",
+    "globby": "^16.1.1",
+    "gradient-string": "^3.0.0",
+    "prettier": "^3.8.1",
+    "ts-morph": "^27.0.2"
+  },
+  "keywords": []
+}

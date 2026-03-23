@@ -1,0 +1,31 @@
+# Ignore everything by default
+*
+
+# --- Keep: Git essentials ---
+!.gitignore
+!package.json
+!package-lock.json
+
+# --- Keep: Config files (from package.json "files") ---
+!.editorconfig
+!.prettierignore
+!.prettierrc.json
+!eslint.config.js
+!tsconfig.json
+
+# --- Keep: Source code (from package.json "files") ---
+!src/
+!src/**
+
+# --- Keep: Documentation (from package.json "files") ---
+!docs/
+!docs/**
+
+# --- Keep: Root files (from package.json "files") ---
+!index.ts
+!CONTRIBUTING.md
+!INSTRUCTIONS.md
+!LICENSE
+!README.md
+
+# Everything else ignored: dist/, node_modules/, swagger/, swagger-heyapi/, vitepress/, openapitools.json, swagger.yaml...
