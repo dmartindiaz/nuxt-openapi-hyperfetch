@@ -106,7 +106,29 @@ api/
         +-- index.ts
 ```
 
-### 3. Use in your Nuxt app
+### 3. Configure the API base URL
+
+Add to `nuxt.config.ts`:
+
+```typescript
+export default defineNuxtConfig({
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://api.example.com'
+    }
+  }
+})
+```
+
+And in `.env`:
+
+```env
+NUXT_PUBLIC_API_BASE_URL=https://api.example.com
+```
+
+All generated `useFetch` and `useAsyncData` composables will automatically use this as `baseURL`. You can still override it per-composable via `options.baseURL`.
+
+### 4. Use in your Nuxt app
 
 ```vue
 <script setup lang="ts">
@@ -152,11 +174,14 @@ And add it to `nuxt.config.ts`:
 ```typescript
 export default defineNuxtConfig({
   runtimeConfig: {
+    // Private — server-side only (never exposed to the browser)
     apiBaseUrl: process.env.API_BASE_URL || '',
     apiSecret: process.env.API_SECRET || '',
   },
 });
 ```
+
+> **Note:** `runtimeConfig.apiBaseUrl` (private) is only for **Server Routes**. For `useFetch`/`useAsyncData` composables use `runtimeConfig.public.apiBaseUrl` instead — see the [Quick Start](#-quick-start) section above.
 
 Then use standard `useFetch` against your Nuxt routes:
 

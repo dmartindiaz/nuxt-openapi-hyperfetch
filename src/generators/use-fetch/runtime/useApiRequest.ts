@@ -4,8 +4,10 @@
  * It requires Nuxt 3 to be installed in the target project
  */
 import { watch } from 'vue';
+import type { UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
+  getGlobalBaseUrl,
   applyPick,
   applyRequestModifications,
   mergeCallbacks,
@@ -28,13 +30,11 @@ type MaybeTransformed<T, Options> = Options extends { transform: (...args: any) 
     : T;
 
 /**
- * Options for useFetch API requests with lifecycle callbacks
- * Extends base options with useFetch-specific options
+ * Options for useFetch API requests with lifecycle callbacks.
+ * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
+ * Native options like baseURL, method, body, headers, query, lazy, server, immediate, etc. are all available.
  */
-export interface ApiRequestOptions<T = any> extends BaseApiRequestOptions<T> {
-  /** All standard useFetch options */
-  [key: string]: any;
-}
+export type ApiRequestOptions<T = any> = BaseApiRequestOptions<T> & Omit<UseFetchOptions<T>, 'transform' | 'pick'>;
 
 /**
  * Enhanced useFetch wrapper with lifecycle callbacks and request interception
@@ -114,6 +114,16 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
     };
   }
 
+  // Apply global base URL from runtimeConfig.public.apiBaseUrl (if not already set per-composable)
+  if (!modifiedOptions.baseURL) {
+    modifiedOptions.baseURL = getGlobalBaseUrl();
+  }
+  if (!modifiedOptions.baseURL) {
+    console.warn(
+      '[nuxt-openapi-hyperfetch] No baseURL configured. Set runtimeConfig.public.apiBaseUrl in nuxt.config.ts or pass baseURL in options.'
+    );
+  }
+
   // Execute merged onRequest interceptor and apply modifications
   if (mergedCallbacks.onRequest) {
     try {
@@ -154,7 +164,8 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
   // Watch for changes in data, error, and pending states
   watch(
     () => [result.data.value, result.error.value, result.pending.value] as const,
-    async ([data, error, pending], [prevData, prevError, prevPending]) => {
+    async ([data, error, pending], prev) => {
+      const [prevData, prevError, prevPending] = prev ?? [undefined, undefined, undefined];
       // Apply transformations when data arrives
       if (data && data !== prevData) {
         let processedData: any = data;

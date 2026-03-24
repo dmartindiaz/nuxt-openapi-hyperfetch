@@ -165,7 +165,14 @@ function generateFunctionBody(
 
   const pInit = hasParams ? `\n  const p = shallowRef(params)` : '';
 
-  return `${description}export const ${composableName} = (${args}) => {${pInit}
+  const argsExtraction = hasParams
+    ? `  const _hasKey = typeof args[0] === 'string'\n  const params = _hasKey ? args[1] : args[0]\n  const options = _hasKey ? { cacheKey: args[0], ...args[2] } : args[1]`
+    : `  const _hasKey = typeof args[0] === 'string'\n  const options = _hasKey ? { cacheKey: args[0], ...args[1] } : args[0]`;
+
+  return `${description}export function ${composableName}(key: string, ${args})
+export function ${composableName}(${args})
+export function ${composableName}(...args: any[]) {
+${argsExtraction}${pInit}
   return ${wrapperFunction}${responseTypeGeneric}(${key}, ${url}, ${fetchOptions})
 }`;
 }

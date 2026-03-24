@@ -148,6 +148,32 @@ export interface ApiRequestOptions<T = any> {
    * pick: ['person.name', 'person.email', 'status']
    */
   pick?: ReadonlyArray<string>;
+
+  /**
+   * Custom cache key for useAsyncData. If provided, used as-is instead of the auto-generated key.
+   * Useful for manual cache control or sharing cache between components.
+   */
+  cacheKey?: string;
+
+  // --- Common fetch options (available in all composables) ---
+
+  /** Base URL prepended to every request URL. Overrides runtimeConfig.public.apiBaseUrl. */
+  baseURL?: string;
+
+  /** HTTP method (GET, POST, PUT, PATCH, DELETE, etc.) */
+  method?: string;
+
+  /** Request body */
+  body?: any;
+
+  /** Request headers */
+  headers?: Record<string, string> | HeadersInit;
+
+  /** URL query parameters */
+  query?: Record<string, any>;
+
+  /** Alias for query */
+  params?: Record<string, any>;
 }
 
 /**
@@ -278,6 +304,21 @@ export function getGlobalCallbacks(): GlobalCallbacksConfig {
   }
 
   return {};
+}
+
+/**
+ * Helper function to get the global base URL from runtimeConfig.public.apiBaseUrl
+ * Returns the configured URL or undefined if not set or not in a Nuxt context.
+ */
+export function getGlobalBaseUrl(): string | undefined {
+  try {
+    const runtimeConfig = useRuntimeConfig();
+    const url = runtimeConfig?.public?.apiBaseUrl as string | undefined;
+    return url || undefined;
+  } catch {
+    // useRuntimeConfig not available outside Nuxt context, that's OK
+    return undefined;
+  }
 }
 
 /**

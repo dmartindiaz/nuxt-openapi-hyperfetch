@@ -6,8 +6,10 @@
  * RAW VERSION: Returns full response including headers, status, and statusText
  */
 import { watch } from 'vue';
+import type { UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
+  getGlobalBaseUrl,
   applyPick,
   applyRequestModifications,
   mergeCallbacks,
@@ -39,37 +41,20 @@ type MaybeTransformedRaw<T, Options> = Options extends { transform: (...args: an
     : RawResponse<T>;
 
 /**
- * Extended options specific to useAsyncData Raw version
+ * Options for useAsyncData Raw API requests.
+ * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
+ * onSuccess receives data AND the full response (headers, status, statusText).
  */
-export interface ApiAsyncDataRawOptions<T> extends Omit<BaseApiRequestOptions<T>, 'onSuccess'> {
-  /**
-   * Success callback that receives both data and full response
-   */
-  onSuccess?: (
-    data: T,
-    response: { headers: Headers; status: number; statusText: string; url: string }
-  ) => void | Promise<void>;
-
-  /**
-   * Whether to fetch data immediately on mount (default: true)
-   */
-  immediate?: boolean;
-
-  /**
-   * Lazy mode: don't block navigation (default: false)
-   */
-  lazy?: boolean;
-
-  /**
-   * Server-side rendering mode (default: true)
-   */
-  server?: boolean;
-
-  /**
-   * Deduplicate requests with the same key (default: 'cancel')
-   */
-  dedupe?: 'cancel' | 'defer';
-}
+export type ApiAsyncDataRawOptions<T> = Omit<BaseApiRequestOptions<T>, 'onSuccess'> &
+  Omit<UseFetchOptions<T>, 'transform' | 'pick' | 'onSuccess'> & {
+    /**
+     * Called when the request succeeds — receives both data and the full response object.
+     */
+    onSuccess?: (
+      data: T,
+      response: { headers: Headers; status: number; statusText: string; url: string }
+    ) => void | Promise<void>;
+  };
 
 /**
  * Generic wrapper for API calls using Nuxt's useAsyncData - RAW VERSION
@@ -93,6 +78,8 @@ export function useApiAsyncDataRaw<T>(
     body,
     headers = {},
     params,
+    baseURL,
+    cacheKey,
     transform,
     pick,
     onRequest,
@@ -107,12 +94,33 @@ export function useApiAsyncDataRaw<T>(
     ...restOptions
   } = options || {};
 
+  // Resolve base URL once at setup time (not inside fetchFn to avoid warning on every request)
+  const resolvedBaseURL = baseURL || getGlobalBaseUrl();
+  if (!resolvedBaseURL) {
+    console.warn(
+      '[nuxt-openapi-hyperfetch] No baseURL configured. Set runtimeConfig.public.apiBaseUrl in nuxt.config.ts or pass baseURL in options.'
+    );
+  }
+
   // Create reactive watch sources for callbacks
   const watchSources = [
     ...(typeof url === 'function' ? [url] : []),
     ...(body && typeof body === 'object' ? [() => body] : []),
     ...(params && typeof params === 'object' ? [() => params] : []),
   ];
+
+  // Build a reactive cache key: composableName + resolved URL + serialized query params
+  // This ensures distinct params produce distinct keys — preventing cache collisions
+  const computedKey = () => {
+    if (cacheKey) return cacheKey;
+    const resolvedUrl = typeof url === 'function' ? url() : url;
+    const resolvedParams = toValue(params);
+    const paramsSuffix =
+      resolvedParams && typeof resolvedParams === 'object' && Object.keys(resolvedParams).length > 0
+        ? '-' + JSON.stringify(resolvedParams)
+        : '';
+    return `${key}-${resolvedUrl}${paramsSuffix}`;
+  };
 
   // Fetch function for useAsyncData
   const fetchFn = async (): Promise<RawResponse<T>> => {
@@ -170,6 +178,7 @@ export function useApiAsyncDataRaw<T>(
         headers: modifiedContext.headers,
         body: modifiedContext.body,
         params: modifiedContext.params,
+        ...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
         ...restOptions,
       });
 
@@ -223,8 +232,8 @@ export function useApiAsyncDataRaw<T>(
     }
   };
 
-  // Use Nuxt's useAsyncData
-  const result = useAsyncData<MaybeTransformedRaw<T, ApiAsyncDataRawOptions<T>>>(key, fetchFn, {
+  // Use Nuxt's useAsyncData with a computed key for proper cache isolation per params
+  const result = useAsyncData<MaybeTransformedRaw<T, ApiAsyncDataRawOptions<T>>>(computedKey, fetchFn, {
     immediate,
     lazy,
     server,

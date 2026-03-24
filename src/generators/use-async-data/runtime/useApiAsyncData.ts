@@ -4,8 +4,10 @@
  * It requires Nuxt 3 to be installed in the target project
  */
 import { watch } from 'vue';
+import type { UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
+  getGlobalBaseUrl,
   applyPick,
   applyRequestModifications,
   mergeCallbacks,
@@ -28,36 +30,19 @@ type MaybeTransformed<T, Options> = Options extends { transform: (...args: any) 
     : T;
 
 /**
- * Extended options specific to useAsyncData
+ * Options for useAsyncData API requests with lifecycle callbacks.
+ * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
+ * Native options like baseURL, method, body, headers, query, lazy, server, immediate, dedupe, etc. are all available.
+ * watch: boolean (true = auto-watch reactive params, false = disable auto-refresh)
  */
-export interface ApiAsyncDataOptions<T> extends BaseApiRequestOptions<T> {
-  /**
-   * Whether to fetch data immediately on mount (default: true)
-   */
-  immediate?: boolean;
-
-  /**
-   * Lazy mode: don't block navigation (default: false)
-   */
-  lazy?: boolean;
-
-  /**
-   * Server-side rendering mode (default: true)
-   */
-  server?: boolean;
-
-  /**
-   * Deduplicate requests with the same key (default: 'cancel')
-   */
-  dedupe?: 'cancel' | 'defer';
-
-  /**
-   * Disable automatic refresh when reactive params change.
-   * Set to false to prevent re-fetching when params/url refs update.
-   * @default true
-   */
-  watch?: boolean;
-}
+export type ApiAsyncDataOptions<T> = BaseApiRequestOptions<T> &
+  Omit<UseFetchOptions<T>, 'transform' | 'pick' | 'watch'> & {
+    /**
+     * Enable automatic refresh when reactive params/url change (default: true).
+     * Set to false to disable auto-refresh entirely.
+     */
+    watch?: boolean;
+  };
 
 /**
  * Generic wrapper for API calls using Nuxt's useAsyncData
@@ -78,6 +63,8 @@ export function useApiAsyncData<T>(
     body,
     headers = {},
     params,
+    baseURL,
+    cacheKey,
     transform,
     pick,
     onRequest,
@@ -92,6 +79,14 @@ export function useApiAsyncData<T>(
     watch: watchOption = true,
     ...restOptions
   } = options || {};
+
+  // Resolve base URL once at setup time (not inside fetchFn to avoid warning on every request)
+  const resolvedBaseURL = baseURL || getGlobalBaseUrl();
+  if (!resolvedBaseURL) {
+    console.warn(
+      '[nuxt-openapi-hyperfetch] No baseURL configured. Set runtimeConfig.public.apiBaseUrl in nuxt.config.ts or pass baseURL in options.'
+    );
+  }
 
   // Create reactive watch sources — use refs/computeds directly so Vue can track them
   // watchOption: false disables auto-refresh entirely
@@ -109,6 +104,19 @@ export function useApiAsyncData<T>(
                 : []
             : []),
         ];
+
+  // Build a reactive cache key: composableName + resolved URL + serialized query params
+  // This ensures distinct params produce distinct keys — preventing cache collisions
+  const computedKey = () => {
+    if (cacheKey) return cacheKey;
+    const resolvedUrl = typeof url === 'function' ? url() : url;
+    const resolvedParams = toValue(params);
+    const paramsSuffix =
+      resolvedParams && typeof resolvedParams === 'object' && Object.keys(resolvedParams).length > 0
+        ? '-' + JSON.stringify(resolvedParams)
+        : '';
+    return `${key}-${resolvedUrl}${paramsSuffix}`;
+  };
 
   // Fetch function for useAsyncData
   const fetchFn = async () => {
@@ -166,6 +174,7 @@ export function useApiAsyncData<T>(
         headers: modifiedContext.headers,
         body: toValue(modifiedContext.body),
         params: toValue(modifiedContext.params),
+        ...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
         ...restOptions,
       });
 
@@ -207,13 +216,13 @@ export function useApiAsyncData<T>(
     }
   };
 
-  // Use Nuxt's useAsyncData
-  const result = useAsyncData<MaybeTransformed<T, ApiAsyncDataOptions<T>>>(key, fetchFn, {
+  // Use Nuxt's useAsyncData with a computed key for proper cache isolation per params
+  const result = useAsyncData<MaybeTransformed<T, ApiAsyncDataOptions<T>>>(computedKey, fetchFn, {
     immediate,
     lazy,
     server,
     dedupe,
-    watch: watchSources.length > 0 ? watchSources : undefined,
+    watch: watchOption === false ? [] : watchSources,
   });
 
   return result;
