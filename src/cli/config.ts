@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import { join } from 'path';
 import * as p from '@clack/prompts';
-import type { GeneratorBackend } from './types.js';
+import type { GeneratorBackend, ConfigGenerator } from './types.js';
 
 const { existsSync } = fs;
 
@@ -37,6 +37,13 @@ export interface GeneratorConfig {
   enableBff?: boolean;
   /** Generator backend: official (Java) or heyapi (Node.js) */
   backend?: GeneratorBackend;
+  /**
+   * Generation engine to use.
+   * - 'openapi': @openapitools/openapi-generator-cli (requires Java 11+)
+   * - 'heyapi': @hey-api/openapi-ts (Node.js native, no Java required)
+   * When set, the CLI will not ask which engine to use.
+   */
+  generator?: ConfigGenerator;
 }
 
 /**

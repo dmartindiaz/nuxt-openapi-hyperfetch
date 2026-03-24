@@ -97,9 +97,17 @@ program
         p.log.warn('🔍 DRY RUN MODE - No files will be written');
       }
 
-      // 0. Select generator backend (first question)
+      // 0. Select generator engine (first question)
+      // Resolve engine from config.generator (user-facing) or config.backend (CLI flag)
+      // config.generator: 'openapi' | 'heyapi'  →  map 'openapi' to internal 'official'
+      const resolvedBackend =
+        config.generator === 'openapi'
+          ? 'official'
+          : config.generator === 'heyapi'
+            ? 'heyapi'
+            : config.backend;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const backend = await promptGeneratorBackend(config.backend);
+      const backend = await promptGeneratorBackend(resolvedBackend);
 
       // Check Java availability when official backend is selected
       if (backend === 'official' && !checkJavaInstalled()) {

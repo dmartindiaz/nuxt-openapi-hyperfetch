@@ -3,9 +3,16 @@
  */
 
 /**
- * Generator backend selector
+ * Generator backend selector (internal)
  */
 export type GeneratorBackend = 'official' | 'heyapi';
+
+/**
+ * Generator engine value for nxh.config — user-facing alias
+ * 'openapi' maps to the official Java-based OpenAPI Generator
+ * 'heyapi' maps to @hey-api/openapi-ts (Node.js native)
+ */
+export type ConfigGenerator = 'openapi' | 'heyapi';
 
 /**
  * Initial input and output paths
