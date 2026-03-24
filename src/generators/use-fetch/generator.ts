@@ -62,7 +62,7 @@ export async function generateUseFetchComposables(
   mainSpinner.start('Preparing output directories');
   const composablesDir = path.join(outputDir, 'composables');
   const runtimeDir = path.join(outputDir, 'runtime');
-  const sharedRuntimeDir = path.join(outputDir, 'shared', 'runtime');
+  const sharedRuntimeDir = path.join(path.dirname(outputDir), 'shared', 'runtime');
   await fs.emptyDir(composablesDir);
   await fs.ensureDir(runtimeDir);
   await fs.ensureDir(sharedRuntimeDir);

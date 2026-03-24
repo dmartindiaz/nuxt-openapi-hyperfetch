@@ -135,7 +135,7 @@ function generateFunctionBody(
   generateOptions?: GenerateOptions
 ): string {
   const hasParams = !!method.requestType;
-  const paramsArg = hasParams ? `params: MaybeRef<${method.requestType}>` : '';
+  const paramsArg = hasParams ? `params: ${method.requestType}` : '';
 
   // Determine the options type based on isRaw
   const optionsType = isRaw
@@ -163,7 +163,7 @@ function generateFunctionBody(
   // Choose the correct wrapper function
   const wrapperFunction = isRaw ? 'useApiAsyncDataRaw' : 'useApiAsyncData';
 
-  const pInit = hasParams ? `\n  const p = isRef(params) ? params : shallowRef(params)` : '';
+  const pInit = hasParams ? `\n  const p = shallowRef(params)` : '';
 
   return `${description}export const ${composableName} = (${args}) => {${pInit}
   return ${wrapperFunction}${responseTypeGeneric}(${key}, ${url}, ${fetchOptions})

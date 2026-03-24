@@ -115,7 +115,7 @@ function generateImports(method: MethodInfo, apiImportPath: string): string {
  */
 function generateFunctionBody(method: MethodInfo, options?: GenerateOptions): string {
   const hasParams = !!method.requestType;
-  const paramsArg = hasParams ? `params: MaybeRef<${method.requestType}>` : '';
+  const paramsArg = hasParams ? `params: ${method.requestType}` : '';
   const optionsType = `ApiRequestOptions<${method.responseType}>`;
   const optionsArg = `options?: ${optionsType}`;
   const args = hasParams ? `${paramsArg}, ${optionsArg}` : optionsArg;
@@ -127,7 +127,7 @@ function generateFunctionBody(method: MethodInfo, options?: GenerateOptions): st
 
   const description = method.description ? `/**\n * ${method.description}\n */\n` : '';
 
-  const pInit = hasParams ? `\n  const p = isRef(params) ? params : shallowRef(params)` : '';
+  const pInit = hasParams ? `\n  const p = shallowRef(params)` : '';
 
   return `${description}export const ${method.composableName} = (${args}) => {${pInit}
   return useApiRequest${responseTypeGeneric}(${url}, ${fetchOptions})
