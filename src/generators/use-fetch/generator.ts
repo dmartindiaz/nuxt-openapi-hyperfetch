@@ -12,7 +12,7 @@ import {
 } from '../shared/parsers/heyapi-parser.js';
 import { generateComposableFile, generateIndexFile, type GenerateOptions } from './templates.js';
 import type { MethodInfo } from './types.js';
-import { p, logSuccess, logError } from '../../cli/logger.js';
+import { type Logger, createClackLogger } from '../../cli/logger.js';
 
 /**
  * Main function to generate useFetch composables
@@ -20,9 +20,10 @@ import { p, logSuccess, logError } from '../../cli/logger.js';
 export async function generateUseFetchComposables(
   inputDir: string,
   outputDir: string,
-  options?: GenerateOptions
+  options?: GenerateOptions,
+  logger: Logger = createClackLogger()
 ): Promise<void> {
-  const mainSpinner = p.spinner();
+  const mainSpinner = logger.spinner();
 
   // Select parser based on chosen backend
   const getApiFiles = options?.backend === 'heyapi' ? getApiFilesHeyApi : getApiFilesOfficial;
@@ -47,14 +48,14 @@ export async function generateUseFetchComposables(
       const apiInfo = parseApiFile(file);
       allMethods.push(...apiInfo.methods);
     } catch (error) {
-      logError(`Error parsing ${fileName}: ${String(error)}`);
+      logger.log.error(`Error parsing ${fileName}: ${String(error)}`);
     }
   }
 
   mainSpinner.stop(`Found ${allMethods.length} methods to generate`);
 
   if (allMethods.length === 0) {
-    p.log.warn('No methods found to generate');
+    logger.log.warn('No methods found to generate');
     return;
   }
 
@@ -103,29 +104,29 @@ export async function generateUseFetchComposables(
   for (const method of allMethods) {
     try {
       const code = generateComposableFile(method, relativePath, options);
-      const formattedCode = await formatCode(code);
+      const formattedCode = await formatCode(code, logger);
       const fileName = `${method.composableName}.ts`;
       const filePath = path.join(composablesDir, fileName);
 
       await fs.writeFile(filePath, formattedCode, 'utf-8');
       successCount++;
     } catch (error) {
-      logError(`Error generating ${method.composableName}: ${String(error)}`);
+      logger.log.error(`Error generating ${method.composableName}: ${String(error)}`);
       errorCount++;
     }
   }
 
   // 7. Generate index.ts
   const indexCode = generateIndexFile(allMethods.map((m) => m.composableName));
-  const formattedIndex = await formatCode(indexCode);
+  const formattedIndex = await formatCode(indexCode, logger);
   await fs.writeFile(path.join(outputDir, 'index.ts'), formattedIndex, 'utf-8');
   mainSpinner.stop(`Generated ${successCount} composables`);
 
   // 8. Summary
   if (errorCount > 0) {
-    p.log.warn(`Completed with ${errorCount} error(s)`);
+    logger.log.warn(`Completed with ${errorCount} error(s)`);
   }
-  logSuccess(`Generated ${successCount} useFetch composable(s) in ${outputDir}`);
+  logger.log.success(`Generated ${successCount} useFetch composable(s) in ${outputDir}`);
 }
 
 /**
@@ -152,7 +153,7 @@ function calculateRelativeImportPath(composablesDir: string, inputDir: string): 
 /**
  * Format code with Prettier
  */
-async function formatCode(code: string): Promise<string> {
+async function formatCode(code: string, logger: Logger): Promise<string> {
   try {
     return await format(code, {
       parser: 'typescript',
@@ -163,7 +164,7 @@ async function formatCode(code: string): Promise<string> {
       tabWidth: 2,
     });
   } catch {
-    p.log.warn('Could not format code with Prettier');
+    logger.log.warn('Could not format code with Prettier');
     return code;
   }
 }

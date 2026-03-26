@@ -174,7 +174,7 @@ Use clear, descriptive commit messages:
 
 ```bash
 # Good commit messages
-git commit -m "feat: add support for @tanstack/vue-query generator"
+git commit -m "feat: add support for x generator"
 git commit -m "fix: resolve path issues on Windows"
 git commit -m "docs: update README with global callbacks examples"
 git commit -m "refactor: extract common parser logic to shared module"
@@ -233,7 +233,6 @@ nuxt-generator/
 │       ├── use-fetch/              # useFetch generator
 │       ├── use-async-data/         # useAsyncData generator
 │       ├── nuxt-server/            # Nuxt Server Routes generator
-│       └── tanstack-query/         # TanStack Query generator (TODO)
 ├── dist/                           # Compiled output
 ├── eslint.config.js                # ESLint configuration
 ├── .prettierrc.json                # Prettier configuration

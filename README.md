@@ -77,7 +77,7 @@ The CLI will ask you for:
 - 📂 Path to your OpenAPI/Swagger file (`.yaml` or `.json`)
 - 📁 Output directory for generated files
 - 🔧 Which generation engine to use (`official` or `heyapi`)
-- ✅ Which composables to generate (`useFetch`, `useAsyncData`, `TanStack Query`, or Nuxt Server Routes)
+- ✅ Which composables to generate (`useFetch`, `useAsyncData`, `Nuxt server routes`)
 
 Or pass arguments directly:
 

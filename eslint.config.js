@@ -54,6 +54,19 @@ export default tseslint.config(
     },
   },
   {
+    // src/module/** uses @nuxt/kit types that only resolve fully inside a real
+    // Nuxt project. Disable the unsafe-* rules here to avoid false positives
+    // while keeping all other rules active.
+    files: ['src/module/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+    },
+  },
+  {
     ignores: [
       'dist/**',
       'node_modules/**',

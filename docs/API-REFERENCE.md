@@ -35,7 +35,6 @@ nxh generate [options]
 
 - `useFetch` - Nuxt 3 useFetch composables
 - `useAsyncData` - Nuxt 3 useAsyncData composables (normal + raw)
-- `@tanstack/vue-query` - TanStack Query composables (TODO)
 - `nuxt-server` - Nuxt server routes with BFF pattern
 
 **Interactive Mode:**

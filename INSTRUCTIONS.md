@@ -58,7 +58,7 @@ The documentation is organized to help different audiences find what they need q
 - Development workflow and best practices
 - How to add new features:
   - Adding a new callback type
-  - Adding a new generator (TanStack Query, etc.)
+  - Adding a new generator
   - Adding parser features
 - Testing strategies
 - Code style guidelines

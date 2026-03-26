@@ -22,7 +22,7 @@ import {
   generateBffReadme,
 } from './bff-templates.js';
 import type { MethodInfo } from './types.js';
-import { p, logSuccess, logError, logNote } from '../../cli/logger.js';
+import { type Logger, createClackLogger } from '../../cli/logger.js';
 
 /**
  * Main function to generate Nuxt Server Routes
@@ -33,9 +33,10 @@ export async function generateNuxtServerRoutes(
   options?: {
     enableBff?: boolean;
     backend?: string;
-  }
+  },
+  logger: Logger = createClackLogger()
 ): Promise<void> {
-  const mainSpinner = p.spinner();
+  const mainSpinner = logger.spinner();
 
   // Select parser based on chosen backend
   const getApiFiles = options?.backend === 'heyapi' ? getApiFilesHeyApi : getApiFilesOfficial;
@@ -44,7 +45,7 @@ export async function generateNuxtServerRoutes(
   const enableBff = options?.enableBff ?? false;
 
   if (enableBff) {
-    p.log.info('BFF Mode: Enabled (transformers + auth)');
+    logger.log.info('BFF Mode: Enabled (transformers + auth)');
   }
 
   // 1. Get all API files
@@ -66,14 +67,14 @@ export async function generateNuxtServerRoutes(
       const apiInfo = parseApiFile(file);
       allMethods.push(...apiInfo.methods);
     } catch (error) {
-      logError(`Error parsing ${fileName}: ${String(error)}`);
+      logger.log.error(`Error parsing ${fileName}: ${String(error)}`);
     }
   }
 
   mainSpinner.stop(`Found ${allMethods.length} routes to generate`);
 
   if (allMethods.length === 0) {
-    p.log.warn('No methods found to generate');
+    logger.log.warn('No methods found to generate');
     return;
   }
 
@@ -84,7 +85,7 @@ export async function generateNuxtServerRoutes(
 
   // 4. Generate BFF structure if enabled
   if (enableBff) {
-    await generateBffStructure(allMethods, serverRoutePath, inputDir);
+    await generateBffStructure(allMethods, serverRoutePath, inputDir, logger);
   }
 
   // 5. Calculate relative import path from server routes to APIs
@@ -104,7 +105,7 @@ export async function generateNuxtServerRoutes(
         enableBff: enableBff,
         resource: resource,
       });
-      const formattedCode = await formatCode(code);
+      const formattedCode = await formatCode(code, logger);
       const routeFilePath = generateRouteFilePath(method);
       const fullPath = path.join(serverRoutePath, routeFilePath);
 
@@ -114,7 +115,7 @@ export async function generateNuxtServerRoutes(
       await fs.writeFile(fullPath, formattedCode, 'utf-8');
       successCount++;
     } catch (error) {
-      logError(`Error generating ${method.path} [${method.httpMethod}]: ${String(error)}`);
+      logger.log.error(`Error generating ${method.path} [${method.httpMethod}]: ${String(error)}`);
       errorCount++;
     }
   }
@@ -125,15 +126,15 @@ export async function generateNuxtServerRoutes(
 
   // Generate routes index (documentation)
   const routesIndexCode = generateRoutesIndexFile(allMethods);
-  const formattedRoutesIndex = await formatCode(routesIndexCode);
+  const formattedRoutesIndex = await formatCode(routesIndexCode, logger);
   await fs.writeFile(path.join(serverRoutePath, '_routes.ts'), formattedRoutesIndex, 'utf-8');
   mainSpinner.stop('Configuration files generated');
 
   // 8. Summary and Next Steps
   if (errorCount > 0) {
-    p.log.warn(`Completed with ${errorCount} error(s)`);
+    logger.log.warn(`Completed with ${errorCount} error(s)`);
   }
-  logSuccess(`Generated ${successCount} server route(s) in ${serverRoutePath}`);
+  logger.log.success(`Generated ${successCount} server route(s) in ${serverRoutePath}`);
 
   // Build next steps message
   let nextSteps = '1. Configure API_BASE_URL and API_SECRET in your .env\n';
@@ -148,7 +149,7 @@ export async function generateNuxtServerRoutes(
     nextSteps += '\n3. Start your Nuxt dev server and test the routes';
   }
 
-  logNote(nextSteps, 'Next steps');
+  logger.note(nextSteps, 'Next steps');
 }
 
 /**
@@ -165,7 +166,7 @@ function calculateRelativeImportPath(serverRoutePath: string, inputDir: string):
 /**
  * Format code with Prettier
  */
-async function formatCode(code: string): Promise<string> {
+async function formatCode(code: string, logger: Logger): Promise<string> {
   try {
     return await format(code, {
       parser: 'typescript',
@@ -175,7 +176,7 @@ async function formatCode(code: string): Promise<string> {
       printWidth: 100,
     });
   } catch {
-    p.log.warn('Prettier formatting failed, using unformatted code');
+    logger.log.warn('Prettier formatting failed, using unformatted code');
     return code;
   }
 }
@@ -186,9 +187,10 @@ async function formatCode(code: string): Promise<string> {
 async function generateBffStructure(
   allMethods: MethodInfo[],
   serverRoutePath: string,
-  inputDir: string
+  inputDir: string,
+  logger: Logger
 ): Promise<void> {
-  const bffSpinner = p.spinner();
+  const bffSpinner = logger.spinner();
   bffSpinner.start('Generating BFF structure (auth + transformers)');
 
   const serverRoot = path.dirname(serverRoutePath);
@@ -200,14 +202,14 @@ async function generateBffStructure(
   const authContextPath = path.join(authDir, 'context.ts');
   if (!fs.existsSync(authContextPath)) {
     const authContextCode = generateAuthContextStub();
-    const formattedAuthContext = await formatCode(authContextCode);
+    const formattedAuthContext = await formatCode(authContextCode, logger);
     await fs.writeFile(authContextPath, formattedAuthContext, 'utf-8');
   }
 
   const authTypesPath = path.join(authDir, 'types.ts');
   if (!fs.existsSync(authTypesPath)) {
     const authTypesCode = generateAuthTypesStub();
-    const formattedAuthTypes = await formatCode(authTypesCode);
+    const formattedAuthTypes = await formatCode(authTypesCode, logger);
     await fs.writeFile(authTypesPath, formattedAuthTypes, 'utf-8');
   }
 
@@ -231,7 +233,7 @@ async function generateBffStructure(
     const transformerPath = path.join(transformersDir, `${resource}.ts`);
     if (!fs.existsSync(transformerPath)) {
       const transformerCode = generateTransformerStub(resource, methods, inputDir);
-      const formattedTransformer = await formatCode(transformerCode);
+      const formattedTransformer = await formatCode(transformerCode, logger);
       await fs.writeFile(transformerPath, formattedTransformer, 'utf-8');
     }
   }
@@ -239,7 +241,7 @@ async function generateBffStructure(
   // 3. Generate examples file (always regenerated)
   const examplesPath = path.join(bffDir, '_transformers.example.ts');
   const examplesCode = generateTransformerExamples();
-  const formattedExamples = await formatCode(examplesCode);
+  const formattedExamples = await formatCode(examplesCode, logger);
   await fs.writeFile(examplesPath, formattedExamples, 'utf-8');
 
   // 4. Generate BFF README (always regenerated)
