@@ -32,17 +32,65 @@
  */
 
 export default defineNuxtPlugin(() => {
-  // Uncomment and customize the callbacks you need
-  const globalCallbacks = {
+  // Define your global callback rules.
+  // Each rule can optionally target specific URL patterns and/or HTTP methods.
+  // Rules are executed in order; backward-compatible with a single object.
+  const globalCallbacks = [
     // ========================================================================
-    // OPTION 3: URL Pattern Matching (OPTIONAL)
+    // RULE 1 — applies to ALL requests (no patterns/methods filter)
     // ========================================================================
-    // Only apply global callbacks to URLs matching these patterns
-    // Use ** to match any path (including nested), * to match single segment
-    // If omitted or empty, callbacks apply to ALL requests
-    // patterns: ['/api/**'],  // Only internal APIs
-    // patterns: ['/api/v1/**', '/api/v2/**'],  // Multiple API versions
-    // patterns: ['**/public/**'],  // All public endpoints
+    // {
+    //   onRequest: (context) => {
+    //     console.log(`[API] ${context.method} ${context.url}`);
+    //   },
+    //   onError: (error) => {
+    //     // Handle 401 globally — return false to suppress local onError
+    //     if (error.statusCode === 401) {
+    //       navigateTo('/login');
+    //       return false;
+    //     }
+    //   },
+    // },
+
+    // ========================================================================
+    // RULE 2 — only for DELETE / POST / PUT (method targeting)
+    // ========================================================================
+    // {
+    //   methods: ['DELETE', 'POST', 'PUT'],
+    //   onSuccess: (data, context) => {
+    //     const { $toast } = useNuxtApp();
+    //     $toast?.success('✅ Operation completed');
+    //   },
+    //   onError: (error) => {
+    //     const { $toast } = useNuxtApp();
+    //     $toast?.error(`❌ ${error.message || 'An error occurred'}`);
+    //   },
+    // },
+
+    // ========================================================================
+    // RULE 3 — only for private API routes (URL pattern targeting)
+    // ========================================================================
+    // {
+    //   patterns: ['/api/private/**'],
+    //   onRequest: () => {
+    //     const token = useCookie('auth-token').value;
+    //     if (token) return { headers: { Authorization: `Bearer ${token}` } };
+    //   },
+    // },
+
+    // ========================================================================
+    // RULE 4 — DELETE on a specific resource (method + pattern combined)
+    // ========================================================================
+    // {
+    //   methods: ['DELETE'],
+    //   patterns: ['/api/users/**'],
+    //   onSuccess: () => console.log('User deleted'),
+    //   onError: (error) => console.error('Delete failed', error),
+    // },
+
+    // ---- Legacy single-object format is still supported ----
+    // You can also pass a single object instead of an array:
+    //   getGlobalApiCallbacks: () => ({ onError: (e) => console.error(e) })
     // ========================================================================
     // onRequest: Called before every request
     // ========================================================================
@@ -178,8 +226,7 @@ export default defineNuxtPlugin(() => {
     //   // Example 4: Clean up global loading state
     //   // const { $loading } = useNuxtApp();
     //   // $loading?.hide();
-    // },
-  };
+  ];
 
   return {
     provide: {

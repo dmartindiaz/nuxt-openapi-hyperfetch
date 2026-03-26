@@ -130,6 +130,7 @@ export function useApiAsyncDataRaw<T>(
     // Merge local and global callbacks
     const mergedCallbacks = mergeCallbacks(
       finalUrl,
+      method,
       { onRequest, onSuccess, onError, onFinish },
       skipGlobalCallbacks
     );

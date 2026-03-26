@@ -93,6 +93,7 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
   // Merge local and global callbacks
   const mergedCallbacks = mergeCallbacks(
     urlValue,
+    String(fetchOptions.method || 'GET'),
     { onRequest, onSuccess, onError, onFinish },
     skipGlobalCallbacks
   );
