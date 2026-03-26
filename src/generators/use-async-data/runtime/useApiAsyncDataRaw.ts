@@ -163,10 +163,10 @@ export function useApiAsyncDataRaw<T>(
               ...modifications.headers,
             };
           }
-          if (modifications.params !== undefined) {
+          if (modifications.query !== undefined) {
             modifiedContext.params = {
               ...modifiedContext.params,
-              ...modifications.params,
+              ...modifications.query,
             };
           }
         }

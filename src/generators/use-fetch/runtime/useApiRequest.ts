@@ -87,15 +87,8 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
     ...fetchOptions
   } = options || {};
 
-  // Prepare request context for onRequest interceptor
+  // Resolve URL value for callbacks and pattern matching
   const urlValue = typeof url === 'function' ? url() : url;
-  const requestContext: RequestContext = {
-    url: urlValue,
-    method: fetchOptions.method || 'GET',
-    body: fetchOptions.body,
-    headers: fetchOptions.headers,
-    query: fetchOptions.query,
-  };
 
   // Merge local and global callbacks
   const mergedCallbacks = mergeCallbacks(
@@ -124,30 +117,32 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
     );
   }
 
-  // Execute merged onRequest interceptor and apply modifications
+  // Pass onRequest to useFetch's native interceptor so async callbacks are
+  // properly awaited by ofetch before the request is sent.
   if (mergedCallbacks.onRequest) {
-    try {
-      const result = mergedCallbacks.onRequest(requestContext);
-
-      // Handle async onRequest
-      if (result && typeof result === 'object' && 'then' in result) {
-        result
-          .then((modifications) => {
-            if (modifications) {
-              applyRequestModifications(modifiedOptions, modifications);
-            }
-          })
-          .catch((error) => {
-            console.error('Error in merged onRequest callback:', error);
-          });
+    const existingOnRequest = modifiedOptions.onRequest;
+    modifiedOptions.onRequest = async ({ options: fetchOpts }) => {
+      // Build context from the live options at request time
+      const requestContext: RequestContext = {
+        url: urlValue,
+        method: String(fetchOpts.method || modifiedOptions.method || 'GET'),
+        body: fetchOpts.body,
+        headers: fetchOpts.headers as Record<string, string> | undefined,
+        query: fetchOpts.query,
+      };
+      try {
+        const modifications = await mergedCallbacks.onRequest!(requestContext);
+        if (modifications && typeof modifications === 'object') {
+          applyRequestModifications(fetchOpts as Record<string, any>, modifications);
+        }
+      } catch (error) {
+        console.error('Error in merged onRequest callback:', error);
       }
-      // Handle sync onRequest with return value
-      else if (result && typeof result === 'object') {
-        applyRequestModifications(modifiedOptions, result);
+      // Chain any pre-existing onRequest interceptor
+      if (existingOnRequest) {
+        await (existingOnRequest as Function)({ options: fetchOpts });
       }
-    } catch (error) {
-      console.error('Error in merged onRequest callback:', error);
-    }
+    };
   }
 
   // Make the actual request using Nuxt's useFetch
@@ -188,7 +183,8 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
         transformedData.value = processedData as TransformedType;
 
         // onSuccess - when data arrives and no error (using merged callback)
-        if (!error && !successExecuted && mergedCallbacks.onSuccess) {
+        // NOTE: data !== null/undefined check instead of truthy to handle 0, false, ''
+        if (data != null && !error && !successExecuted && mergedCallbacks.onSuccess) {
           successExecuted = true;
           try {
             await mergedCallbacks.onSuccess(processedData);
@@ -211,9 +207,9 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
       // onFinish - when request completes (was pending, now not) (using merged callback)
       if (prevPending && !pending && mergedCallbacks.onFinish) {
         const finishContext: FinishContext<TransformedType> = {
-          data: transformedData.value || undefined,
-          error: error || undefined,
-          success: !!transformedData.value && !error,
+          data: transformedData.value ?? undefined,
+          error: error ?? undefined,
+          success: data != null && !error,
         };
 
         try {
