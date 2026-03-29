@@ -5,6 +5,7 @@ import { generateOpenApiFiles, generateHeyApiFiles, checkJavaInstalled } from '.
 import { generateUseFetchComposables } from './generators/use-fetch/generator.js';
 import { generateUseAsyncDataComposables } from './generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from './generators/nuxt-server/generator.js';
+import { generateConnectors } from './generators/components/connector-generator/generator.js';
 import {
   promptInitialInputs,
   promptInputPath,
@@ -261,5 +262,42 @@ program
       process.exit(1);
     }
   });
+
+program
+  .command('connectors')
+  .description('Generate headless connector composables from an OpenAPI spec')
+  .requiredOption('-i, --input <path>', 'Path to OpenAPI YAML or JSON spec')
+  .requiredOption('-o, --output <path>', 'Output directory for connector composables')
+  .option(
+    '--composables-dir <relPath>',
+    'Relative path from output dir to useAsyncData composables (default: ../use-async-data)'
+  )
+  .option(
+    '--runtime-dir <relPath>',
+    'Relative path from output dir where runtime helpers are copied (default: ../runtime)'
+  )
+  .action(
+    async (options: {
+      input: string;
+      output: string;
+      composablesDir?: string;
+      runtimeDir?: string;
+    }) => {
+      try {
+        displayLogo();
+        p.intro('Generating connector composables…');
+        await generateConnectors({
+          inputSpec: options.input,
+          outputDir: options.output,
+          composablesRelDir: options.composablesDir,
+          runtimeRelDir: options.runtimeDir,
+        });
+        p.outro('Done!');
+      } catch (error) {
+        p.log.error(`Error: ${String(error)}`);
+        process.exit(1);
+      }
+    }
+  );
 
 program.parse();

@@ -44,7 +44,8 @@
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.0.0 || ^4.0.0",
-    "nuxt": "^3.0.0 || ^4.0.0"
+    "nuxt": "^3.0.0 || ^4.0.0",
+    "zod": "^3.0.0"
   },
   "peerDependenciesMeta": {
     "nuxt": {
@@ -52,6 +53,9 @@
     },
     "@nuxt/kit": {
       "optional": true
+    },
+    "zod": {
+      "optional": false
     }
   },
   "devDependencies": {
@@ -60,6 +64,7 @@
     "@nuxt/schema": "^4.4.2",
     "@types/fs-extra": "^11.0.4",
     "@types/gradient-string": "^1.1.6",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
@@ -79,6 +84,7 @@
     "fs-extra": "^11.3.4",
     "globby": "^16.1.1",
     "gradient-string": "^3.0.0",
+    "js-yaml": "^4.1.1",
     "prettier": "^3.8.1",
     "ts-morph": "^27.0.2"
   },
