@@ -180,6 +180,34 @@ export interface ApiRequestOptions<T = any> {
    */
   cacheKey?: string;
 
+  // --- Pagination options ---
+
+  /**
+   * Enable pagination for this request.
+   * When true, the composable injects page/perPage params and exposes `pagination` state + helpers.
+   * Uses global pagination config by default (set via plugins/api-pagination.ts).
+   * @example
+   * const { data, pagination, goToPage, nextPage, prevPage, setPerPage } = useGetPets(params, { paginated: true })
+   */
+  paginated?: boolean;
+
+  /**
+   * Initial page number. Defaults to global config default (usually 1).
+   */
+  initialPage?: number;
+
+  /**
+   * Initial page size. Defaults to global config default (usually 20).
+   */
+  initialPerPage?: number;
+
+  /**
+   * Per-request pagination config override.
+   * Takes priority over the global pagination config set in plugins/api-pagination.ts.
+   * Useful when one specific endpoint has a different pagination convention.
+   */
+  paginationConfig?: import('./pagination.js').PaginationConfig;
+
   // --- Common fetch options (available in all composables) ---
 
   /** Base URL prepended to every request URL. Overrides runtimeConfig.public.apiBaseUrl. */

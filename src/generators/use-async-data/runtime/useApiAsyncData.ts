@@ -3,7 +3,7 @@
  * Nuxt Runtime Helper - This file is copied to the generated output
  * It requires Nuxt 3 to be installed in the target project
  */
-import { watch } from 'vue';
+import { watch, ref, computed } from 'vue';
 import type { UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
@@ -16,6 +16,14 @@ import {
   type FinishContext,
   type ApiRequestOptions as BaseApiRequestOptions,
 } from '../../shared/runtime/apiHelpers.js';
+import {
+  getGlobalApiPagination,
+  buildPaginationRequest,
+  extractPaginationMetaFromBody,
+  extractPaginationMetaFromHeaders,
+  unwrapDataKey,
+  type PaginationState,
+} from '../../shared/runtime/pagination.js';
 
 /**
  * Helper type to infer transformed data type
@@ -77,8 +85,26 @@ export function useApiAsyncData<T>(
     server = true,
     dedupe = 'cancel',
     watch: watchOption = true,
+    paginated,
+    initialPage,
+    initialPerPage,
+    paginationConfig,
     ...restOptions
   } = options || {};
+
+  // ---------------------------------------------------------------------------
+  // Pagination setup
+  // ---------------------------------------------------------------------------
+  const activePaginationConfig = paginationConfig ?? (paginated ? getGlobalApiPagination() : null);
+  const page = ref<number>(initialPage ?? activePaginationConfig?.request.defaults.page ?? 1);
+  const perPage = ref<number>(initialPerPage ?? activePaginationConfig?.request.defaults.perPage ?? 20);
+
+  const paginationState = ref<PaginationState>({
+    currentPage: page.value,
+    totalPages: 0,
+    total: 0,
+    perPage: perPage.value,
+  });
 
   // Resolve base URL once at setup time (not inside fetchFn to avoid warning on every request)
   const resolvedBaseURL = baseURL || getGlobalBaseUrl();
@@ -103,6 +129,8 @@ export function useApiAsyncData<T>(
                 ? [() => params]
                 : []
             : []),
+          // Add pagination refs so page/perPage changes trigger re-fetch
+          ...(paginated ? [page, perPage] : []),
         ];
 
   // Build a reactive cache key: composableName + resolved URL + serialized query params
@@ -170,14 +198,63 @@ export function useApiAsyncData<T>(
       }
 
       // Make the request with $fetch — toValue() unrefs any Ref/ComputedRef
-      let data = await $fetch<T>(modifiedContext.url, {
-        method: modifiedContext.method,
-        headers: modifiedContext.headers,
-        body: toValue(modifiedContext.body),
-        params: toValue(modifiedContext.params),
-        ...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
-        ...restOptions,
-      });
+      // For paginated requests with metaSource:'headers', use $fetch.raw for header access
+      let data: T;
+      if (paginated && activePaginationConfig) {
+        // Inject pagination params into the correct location
+        const paginationPayload = buildPaginationRequest(page.value, perPage.value, activePaginationConfig);
+        const paginatedQuery = { ...toValue(modifiedContext.params), ...paginationPayload.query };
+        const paginatedBody = paginationPayload.body
+          ? { ...(toValue(modifiedContext.body) ?? {}), ...paginationPayload.body }
+          : toValue(modifiedContext.body);
+        const paginatedHeaders = paginationPayload.headers
+          ? { ...modifiedContext.headers, ...paginationPayload.headers }
+          : modifiedContext.headers;
+
+        if (activePaginationConfig.meta.metaSource === 'headers') {
+          // Need raw fetch to access response headers
+          const response = await $fetch.raw<T>(modifiedContext.url, {
+            method: modifiedContext.method,
+            headers: paginatedHeaders,
+            body: paginatedBody,
+            params: paginatedQuery,
+            ...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
+            ...restOptions,
+          });
+          // Extract pagination meta from headers
+          const meta = extractPaginationMetaFromHeaders(response.headers, activePaginationConfig);
+          if (meta.total !== undefined) paginationState.value.total = meta.total;
+          if (meta.totalPages !== undefined) paginationState.value.totalPages = meta.totalPages;
+          if (meta.currentPage !== undefined) paginationState.value.currentPage = meta.currentPage;
+          if (meta.perPage !== undefined) paginationState.value.perPage = meta.perPage;
+          data = unwrapDataKey<T>(response._data, activePaginationConfig);
+        } else {
+          // metaSource: 'body' — extract after receiving the data
+          const rawData = await $fetch<any>(modifiedContext.url, {
+            method: modifiedContext.method,
+            headers: paginatedHeaders,
+            body: paginatedBody,
+            params: paginatedQuery,
+            ...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
+            ...restOptions,
+          });
+          const meta = extractPaginationMetaFromBody(rawData, activePaginationConfig);
+          if (meta.total !== undefined) paginationState.value.total = meta.total;
+          if (meta.totalPages !== undefined) paginationState.value.totalPages = meta.totalPages;
+          if (meta.currentPage !== undefined) paginationState.value.currentPage = meta.currentPage;
+          if (meta.perPage !== undefined) paginationState.value.perPage = meta.perPage;
+          data = unwrapDataKey<T>(rawData, activePaginationConfig);
+        }
+      } else {
+        data = await $fetch<T>(modifiedContext.url, {
+          method: modifiedContext.method,
+          headers: modifiedContext.headers,
+          body: toValue(modifiedContext.body),
+          params: toValue(modifiedContext.params),
+          ...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
+          ...restOptions,
+        });
+      }
 
       // Apply pick if provided
       if (pick) {
@@ -226,5 +303,27 @@ export function useApiAsyncData<T>(
     watch: watchOption === false ? [] : watchSources,
   });
 
-  return result;
+  if (!paginated) return result;
+
+  // Pagination computed helpers
+  const hasNextPage = computed(() => paginationState.value.currentPage < paginationState.value.totalPages);
+  const hasPrevPage = computed(() => paginationState.value.currentPage > 1);
+
+  const goToPage = (n: number) => { page.value = n; };
+  const nextPage = () => { if (hasNextPage.value) goToPage(page.value + 1); };
+  const prevPage = () => { if (hasPrevPage.value) goToPage(page.value - 1); };
+  const setPerPage = (n: number) => { perPage.value = n; page.value = 1; };
+
+  return {
+    ...result,
+    pagination: computed(() => ({
+      ...paginationState.value,
+      hasNextPage: hasNextPage.value,
+      hasPrevPage: hasPrevPage.value,
+    })),
+    goToPage,
+    nextPage,
+    prevPage,
+    setPerPage,
+  };
 }

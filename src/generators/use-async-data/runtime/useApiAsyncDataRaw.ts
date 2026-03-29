@@ -5,7 +5,7 @@
  *
  * RAW VERSION: Returns full response including headers, status, and statusText
  */
-import { watch } from 'vue';
+import { ref, computed } from 'vue';
 import type { UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
@@ -18,6 +18,14 @@ import {
   type FinishContext,
   type ApiRequestOptions as BaseApiRequestOptions,
 } from '../../shared/runtime/apiHelpers.js';
+import {
+  getGlobalApiPagination,
+  buildPaginationRequest,
+  extractPaginationMetaFromBody,
+  extractPaginationMetaFromHeaders,
+  unwrapDataKey,
+  type PaginationState,
+} from '../../shared/runtime/pagination.js';
 
 /**
  * Response structure for Raw version
@@ -91,8 +99,26 @@ export function useApiAsyncDataRaw<T>(
     lazy = false,
     server = true,
     dedupe = 'cancel',
+    paginated,
+    initialPage,
+    initialPerPage,
+    paginationConfig,
     ...restOptions
   } = options || {};
+
+  // ---------------------------------------------------------------------------
+  // Pagination setup
+  // ---------------------------------------------------------------------------
+  const activePaginationConfig = paginationConfig ?? (paginated ? getGlobalApiPagination() : null);
+  const page = ref<number>(initialPage ?? activePaginationConfig?.request.defaults.page ?? 1);
+  const perPage = ref<number>(initialPerPage ?? activePaginationConfig?.request.defaults.perPage ?? 20);
+
+  const paginationState = ref<PaginationState>({
+    currentPage: page.value,
+    totalPages: 0,
+    total: 0,
+    perPage: perPage.value,
+  });
 
   // Resolve base URL once at setup time (not inside fetchFn to avoid warning on every request)
   const resolvedBaseURL = baseURL || getGlobalBaseUrl();
@@ -107,6 +133,8 @@ export function useApiAsyncDataRaw<T>(
     ...(typeof url === 'function' ? [url] : []),
     ...(body && typeof body === 'object' ? [() => body] : []),
     ...(params && typeof params === 'object' ? [() => params] : []),
+    // Add pagination refs so page/perPage changes trigger re-fetch
+    ...(paginated ? [page, perPage] : []),
   ];
 
   // Build a reactive cache key: composableName + resolved URL + serialized query params
@@ -173,18 +201,46 @@ export function useApiAsyncDataRaw<T>(
         }
       }
 
+      // Build final request params, injecting pagination if enabled
+      let finalQuery = modifiedContext.params;
+      let finalBody = modifiedContext.body;
+      let finalHeaders = modifiedContext.headers;
+
+      if (paginated && activePaginationConfig) {
+        const paginationPayload = buildPaginationRequest(page.value, perPage.value, activePaginationConfig);
+        if (paginationPayload.query) finalQuery = { ...finalQuery, ...paginationPayload.query };
+        if (paginationPayload.body) finalBody = { ...(finalBody ?? {}), ...paginationPayload.body };
+        if (paginationPayload.headers) finalHeaders = { ...finalHeaders, ...paginationPayload.headers };
+      }
+
       // Make the request with $fetch.raw to get full response
       const response = await $fetch.raw<T>(modifiedContext.url, {
         method: modifiedContext.method,
-        headers: modifiedContext.headers,
-        body: modifiedContext.body,
-        params: modifiedContext.params,
+        headers: finalHeaders,
+        body: finalBody,
+        params: finalQuery,
         ...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
         ...restOptions,
       });
 
-      // Extract data from response
-      let data = response._data as T;
+      // Extract pagination meta from headers or body
+      if (paginated && activePaginationConfig) {
+        let meta;
+        if (activePaginationConfig.meta.metaSource === 'headers') {
+          meta = extractPaginationMetaFromHeaders(response.headers, activePaginationConfig);
+        } else {
+          meta = extractPaginationMetaFromBody(response._data, activePaginationConfig);
+        }
+        if (meta.total !== undefined) paginationState.value.total = meta.total;
+        if (meta.totalPages !== undefined) paginationState.value.totalPages = meta.totalPages;
+        if (meta.currentPage !== undefined) paginationState.value.currentPage = meta.currentPage;
+        if (meta.perPage !== undefined) paginationState.value.perPage = meta.perPage;
+      }
+
+      // Extract data from response (unwrap dataKey for paginated responses)
+      let data = paginated && activePaginationConfig
+        ? unwrapDataKey<T>(response._data, activePaginationConfig)
+        : response._data as T;
 
       // Apply pick if provided (only to data)
       if (pick) {
@@ -242,5 +298,27 @@ export function useApiAsyncDataRaw<T>(
     watch: watchSources.length > 0 ? watchSources : undefined,
   });
 
-  return result;
+  if (!paginated) return result;
+
+  // Pagination computed helpers
+  const hasNextPage = computed(() => paginationState.value.currentPage < paginationState.value.totalPages);
+  const hasPrevPage = computed(() => paginationState.value.currentPage > 1);
+
+  const goToPage = (n: number) => { page.value = n; };
+  const nextPage = () => { if (hasNextPage.value) goToPage(page.value + 1); };
+  const prevPage = () => { if (hasPrevPage.value) goToPage(page.value - 1); };
+  const setPerPage = (n: number) => { perPage.value = n; page.value = 1; };
+
+  return {
+    ...result,
+    pagination: computed(() => ({
+      ...paginationState.value,
+      hasNextPage: hasNextPage.value,
+      hasPrevPage: hasPrevPage.value,
+    })),
+    goToPage,
+    nextPage,
+    prevPage,
+    setPerPage,
+  };
 }

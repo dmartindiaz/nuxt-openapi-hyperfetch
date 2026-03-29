@@ -3,7 +3,7 @@
  * Nuxt Runtime Helper - This file is copied to the generated output
  * It requires Nuxt 3 to be installed in the target project
  */
-import { watch } from 'vue';
+import { watch, ref, computed } from 'vue';
 import type { UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
@@ -16,6 +16,14 @@ import {
   type FinishContext,
   type ApiRequestOptions as BaseApiRequestOptions,
 } from '../../shared/runtime/apiHelpers.js';
+import {
+  getGlobalApiPagination,
+  buildPaginationRequest,
+  extractPaginationMetaFromBody,
+  extractPaginationMetaFromHeaders,
+  unwrapDataKey,
+  type PaginationState,
+} from '../../shared/runtime/pagination.js';
 
 /**
  * Helper type to infer transformed data type
@@ -84,13 +92,34 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
     skipGlobalCallbacks,
     transform,
     pick,
+    paginated,
+    initialPage,
+    initialPerPage,
+    paginationConfig,
     ...fetchOptions
   } = options || {};
 
   // Resolve URL value for callbacks and pattern matching
   const urlValue = typeof url === 'function' ? url() : url;
 
+  // ---------------------------------------------------------------------------
+  // Pagination setup
+  // ---------------------------------------------------------------------------
+  const activePaginationConfig = paginationConfig ?? (paginated ? getGlobalApiPagination() : null);
+  const page = ref<number>(initialPage ?? activePaginationConfig?.request.defaults.page ?? 1);
+  const perPage = ref<number>(initialPerPage ?? activePaginationConfig?.request.defaults.perPage ?? 20);
+
+  // Reactive pagination state (populated after response)
+  const paginationState = ref<PaginationState>({
+    currentPage: page.value,
+    totalPages: 0,
+    total: 0,
+    perPage: perPage.value,
+  });
+
+  // ---------------------------------------------------------------------------
   // Merge local and global callbacks
+  // ---------------------------------------------------------------------------
   const mergedCallbacks = mergeCallbacks(
     urlValue,
     String(fetchOptions.method || 'GET'),
@@ -116,6 +145,54 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
     console.warn(
       '[nuxt-openapi-hyperfetch] No baseURL configured. Set runtimeConfig.public.apiBaseUrl in nuxt.config.ts or pass baseURL in options.'
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inject pagination request params before every request
+  // ---------------------------------------------------------------------------
+  if (paginated && activePaginationConfig) {
+    const existingOnRequestForPagination = modifiedOptions.onRequest;
+    modifiedOptions.onRequest = async (ctx) => {
+      // Inject page/perPage according to sendAs strategy
+      const paginationPayload = buildPaginationRequest(page.value, perPage.value, activePaginationConfig);
+      if (paginationPayload.query) {
+        ctx.options.query = { ...ctx.options.query, ...paginationPayload.query };
+      }
+      if (paginationPayload.body) {
+        ctx.options.body = {
+          ...(ctx.options.body && typeof ctx.options.body === 'object' ? ctx.options.body : {}),
+          ...paginationPayload.body,
+        };
+      }
+      if (paginationPayload.headers) {
+        ctx.options.headers = { ...ctx.options.headers, ...paginationPayload.headers };
+      }
+      if (existingOnRequestForPagination) {
+        await (existingOnRequestForPagination as Function)(ctx);
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Extract pagination metadata from headers after response (metaSource: 'headers')
+  // ---------------------------------------------------------------------------
+  if (paginated && activePaginationConfig && activePaginationConfig.meta.metaSource === 'headers') {
+    const existingOnResponse = modifiedOptions.onResponse;
+    modifiedOptions.onResponse = async ({ response }) => {
+      const meta = extractPaginationMetaFromHeaders(response.headers, activePaginationConfig);
+      if (meta.total !== undefined) paginationState.value.total = meta.total;
+      if (meta.totalPages !== undefined) paginationState.value.totalPages = meta.totalPages;
+      if (meta.currentPage !== undefined) paginationState.value.currentPage = meta.currentPage;
+      if (meta.perPage !== undefined) paginationState.value.perPage = meta.perPage;
+      if (existingOnResponse) {
+        await (existingOnResponse as Function)({ response });
+      }
+    };
+  }
+
+  // If page/perPage refs change, re-trigger useFetch (add them to watch array)
+  if (paginated) {
+    modifiedOptions.watch = [...(modifiedOptions.watch ?? []), page, perPage];
   }
 
   // Pass onRequest to useFetch's native interceptor so async callbacks are
@@ -164,7 +241,20 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
       const [prevData, prevError, prevPending] = prev ?? [undefined, undefined, undefined];
       // Apply transformations when data arrives
       if (data && data !== prevData) {
-        let processedData: any = data;
+        // Unwrap dataKey for paginated body-based responses BEFORE pick/transform
+        let processedData: any =
+          paginated && activePaginationConfig && activePaginationConfig.meta.metaSource === 'body'
+            ? unwrapDataKey(data, activePaginationConfig)
+            : data;
+
+        // Extract body-based pagination meta from raw response
+        if (paginated && activePaginationConfig && activePaginationConfig.meta.metaSource === 'body') {
+          const meta = extractPaginationMetaFromBody(data, activePaginationConfig);
+          if (meta.total !== undefined) paginationState.value.total = meta.total;
+          if (meta.totalPages !== undefined) paginationState.value.totalPages = meta.totalPages;
+          if (meta.currentPage !== undefined) paginationState.value.currentPage = meta.currentPage;
+          if (meta.perPage !== undefined) paginationState.value.perPage = meta.perPage;
+        }
 
         // Step 1: Apply pick if specified
         if (pick) {
@@ -223,9 +313,42 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
     { immediate: true }
   );
 
-  // Return result with transformed data
-  return {
+  // Return result with transformed data and optional pagination
+  const baseResult = {
     ...result,
     data: transformedData as Ref<TransformedType | null>,
+  };
+
+  if (!paginated) return baseResult;
+
+  // Pagination computed helpers
+  const hasNextPage = computed(() => paginationState.value.currentPage < paginationState.value.totalPages);
+  const hasPrevPage = computed(() => paginationState.value.currentPage > 1);
+
+  const goToPage = (n: number) => {
+    page.value = n;
+    successExecuted = false;
+    errorExecuted = false;
+  };
+  const nextPage = () => { if (hasNextPage.value) goToPage(page.value + 1); };
+  const prevPage = () => { if (hasPrevPage.value) goToPage(page.value - 1); };
+  const setPerPage = (n: number) => {
+    perPage.value = n;
+    page.value = 1;
+    successExecuted = false;
+    errorExecuted = false;
+  };
+
+  return {
+    ...baseResult,
+    pagination: computed(() => ({
+      ...paginationState.value,
+      hasNextPage: hasNextPage.value,
+      hasPrevPage: hasPrevPage.value,
+    })),
+    goToPage,
+    nextPage,
+    prevPage,
+    setPerPage,
   };
 }
