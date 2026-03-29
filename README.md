@@ -2,6 +2,10 @@
 
 **Generate type-safe, SSR-compatible Nuxt composables from OpenAPI/Swagger specifications.**
 
+📖 **[Full documentation → nuxt-openapi-hyperfetch.netlify.app](https://nuxt-openapi-hyperfetch.netlify.app/)**
+
+---
+
 Transform your API documentation into production-ready **100% Nuxt-native** code—`useFetch` composables, `useAsyncData` composables, and Nuxt Server Routes—with full TypeScript support, lifecycle callbacks, and request interception. No third-party runtime, no wrappers: just Nuxt.
 
 ---
