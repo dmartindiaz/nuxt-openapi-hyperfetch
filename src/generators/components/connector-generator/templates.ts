@@ -41,7 +41,7 @@ function toFileName(composableName: string): string {
 /**
  * Build all `import` lines for a resource connector.
  */
-function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelDir: string): string {
+function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelDir: string, runtimeRelDir: string): string {
   const lines: string[] = [];
 
   // zod
@@ -59,7 +59,7 @@ function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelD
   if (resource.deleteEndpoint) {
     connectorTypeImports.push('DeleteConnectorReturn');
   }
-  lines.push(`import type { ${connectorTypeImports.join(', ')} } from '#nxh/runtime/connector-types';`);
+  lines.push(`import type { ${connectorTypeImports.join(', ')} } from '${runtimeRelDir}/connector-types';`);
   lines.push('');
 
   // SDK request/response types (for the params overload signature)
@@ -69,7 +69,7 @@ function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelD
     lines.push('');
   }
 
-  // runtime helpers (Nuxt alias — set up by the Nuxt module)
+  // runtime helpers — relative path works in both CLI and Nuxt module contexts
   // useListConnector is always imported to support the optional factory pattern
   const runtimeHelpers: string[] = ['useListConnector'];
   if (resource.detailEndpoint) {
@@ -83,7 +83,7 @@ function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelD
   }
 
   for (const helper of runtimeHelpers) {
-    lines.push(`import { ${helper} } from '#nxh/runtime/${helper}';`);
+    lines.push(`import { ${helper} } from '${runtimeRelDir}/${helper}';`);
   }
   lines.push('');
 
@@ -375,10 +375,11 @@ function buildFunctionBody(resource: ResourceInfo): string {
 export function generateConnectorFile(
   resource: ResourceInfo,
   composablesRelDir: string,
-  sdkRelDir = '../..'
+  sdkRelDir = '../..',
+  runtimeRelDir = '../../runtime'
 ): string {
   const header = generateFileHeader();
-  const imports = buildImports(resource, composablesRelDir, sdkRelDir);
+  const imports = buildImports(resource, composablesRelDir, sdkRelDir, runtimeRelDir);
   const schemas = buildZodSchemas(resource);
   const columns = buildColumns(resource);
   const optionsInterface = buildOptionsInterface(resource);

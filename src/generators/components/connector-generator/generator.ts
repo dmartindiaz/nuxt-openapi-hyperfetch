@@ -78,7 +78,7 @@ export async function generateConnectors(
 
   for (const resource of resourceMap.values()) {
     try {
-      const code = generateConnectorFile(resource, composablesRelDir);
+      const code = generateConnectorFile(resource, composablesRelDir, '../..', runtimeRelDir);
       const formatted = await formatCode(code, logger);
       const fileName = connectorFileName(resource.composableName);
       const filePath = path.join(outputDir, fileName);

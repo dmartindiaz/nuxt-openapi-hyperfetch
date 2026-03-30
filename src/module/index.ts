@@ -108,7 +108,6 @@ export default defineNuxtModule<ModuleOptions>({
         selectedGenerators.includes('useAsyncData')
       ) {
         const connectorsOutputDir = path.join(composablesOutputDir, 'connectors');
-        const runtimeDir = path.join(resolvedOutput, 'runtime');
         await generateConnectors(
           {
             inputSpec: resolvedInput,
@@ -118,8 +117,6 @@ export default defineNuxtModule<ModuleOptions>({
           },
           logger
         );
-        // Register #nxh alias so generated connector imports resolve
-        nuxt.options.alias['#nxh'] = runtimeDir;
       }
     };
 
