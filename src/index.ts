@@ -87,7 +87,8 @@ program
           options.backend === 'official' || options.backend === 'heyapi'
             ? options.backend
             : undefined,
-        createUseAsyncDataConnectors: options.connectors,
+        // Only propagate if explicitly passed — undefined means "ask the user"
+        createUseAsyncDataConnectors: options.connectors === true ? true : undefined,
       });
 
       if (config.verbose) {
