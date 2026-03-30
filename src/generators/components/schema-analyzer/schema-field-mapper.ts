@@ -167,7 +167,7 @@ function baseZodExpr(prop: OpenApiPropertySchema): string {
       return arrayZodExpr(prop);
 
     case 'object':
-      return 'z.record(z.unknown())';
+      return objectZodExpr(prop);
 
     default:
       // $ref already resolved, unknown type → permissive
@@ -222,6 +222,31 @@ function numberZodExpr(prop: OpenApiPropertySchema): string {
     expr += `.max(${prop.maximum})`;
   }
   return expr;
+}
+
+function objectZodExpr(prop: OpenApiPropertySchema): string {
+  const { additionalProperties } = prop;
+
+  // additionalProperties: false or undefined → plain object
+  if (!additionalProperties || additionalProperties === true) {
+    return 'z.record(z.unknown())';
+  }
+
+  // additionalProperties has a known primitive type → typed record
+  const valueExpr = additionalPropsZodExpr(additionalProperties);
+  return `z.record(${valueExpr})`;
+}
+
+function additionalPropsZodExpr(schema: OpenApiPropertySchema): string {
+  switch (schema.type) {
+    case 'string':   return stringZodExpr(schema);
+    case 'integer':  return integerZodExpr(schema);
+    case 'number':   return numberZodExpr(schema);
+    case 'boolean':  return 'z.boolean()';
+    case 'array':    return arrayZodExpr(schema);
+    case 'object':   return objectZodExpr(schema);
+    default:         return 'z.unknown()';
+  }
 }
 
 function arrayZodExpr(prop: OpenApiPropertySchema): string {

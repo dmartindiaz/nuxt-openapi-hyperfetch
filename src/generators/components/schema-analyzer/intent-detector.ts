@@ -49,6 +49,16 @@ function isArraySchema(schema: OpenApiPropertySchema): boolean {
   return schema.type === 'array' || schema.items !== undefined;
 }
 
+/** True when schema is a primitive scalar (string, number, integer, boolean) — not a resource */
+function isPrimitiveSchema(schema: OpenApiPropertySchema): boolean {
+  return (
+    schema.type === 'string' ||
+    schema.type === 'number' ||
+    schema.type === 'integer' ||
+    schema.type === 'boolean'
+  );
+}
+
 // ─── Request body schema ──────────────────────────────────────────────────────
 
 function getRequestBodySchema(operation: OpenApiOperation): OpenApiPropertySchema | undefined {
@@ -111,6 +121,12 @@ export function detectIntent(
       // Array response ( type: 'array' OR has 'items' ) → always a list
       if (isArraySchema(responseSchema)) {
         return 'list';
+      }
+
+      // Primitive response (string, number, boolean) → not a CRUD resource
+      // e.g. GET /user/login returns a string token — not a list or detail
+      if (isPrimitiveSchema(responseSchema)) {
+        return 'unknown';
       }
 
       // Object response — distinguish list vs detail by path structure:
