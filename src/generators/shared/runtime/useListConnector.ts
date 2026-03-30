@@ -13,14 +13,16 @@
 import { ref, computed, shallowRef } from 'vue';
 
 /**
- * @param composableFn  The generated useAsyncData composable, e.g. useAsyncDataGetPets
- * @param options       Configuration for the list connector
+ * @param factory   A zero-argument function that calls and returns the underlying
+ *                  useAsyncData composable, e.g. () => useAsyncDataGetPets(params)
+ *                  The factory is called once during connector setup (inside setup()).
+ * @param options   Configuration for the list connector
  */
-export function useListConnector(composableFn, options = {}) {
+export function useListConnector(factory, options = {}) {
   const { paginated = false, columns = [], columnLabels = {}, columnLabel = null } = options;
 
   // ── Execute the underlying composable ──────────────────────────────────────
-  const composable = composableFn({ paginated });
+  const composable = factory();
 
   // ── Derived state ──────────────────────────────────────────────────────────
 

@@ -13,6 +13,7 @@ import { type Logger, createClackLogger } from '../../../cli/logger.js';
 
 // Runtime files that must be copied to the user's project
 const RUNTIME_FILES = [
+  'connector-types.ts',
   'useListConnector.ts',
   'useDetailConnector.ts',
   'useFormConnector.ts',

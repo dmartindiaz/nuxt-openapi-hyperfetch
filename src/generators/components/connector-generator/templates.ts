@@ -15,7 +15,6 @@ function generateFileHeader(): string {
  */
 
 /* eslint-disable */
-// @ts-nocheck
 `;
 }
 
@@ -42,18 +41,37 @@ function toFileName(composableName: string): string {
 /**
  * Build all `import` lines for a resource connector.
  */
-function buildImports(resource: ResourceInfo, composablesRelDir: string): string {
+function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelDir: string): string {
   const lines: string[] = [];
 
   // zod
   lines.push(`import { z } from 'zod';`);
   lines.push('');
 
-  // runtime helpers (Nuxt alias — set up by the Nuxt module)
-  const runtimeHelpers: string[] = [];
-  if (resource.listEndpoint) {
-    runtimeHelpers.push('useListConnector');
+  // connector-types — structural interfaces for return types
+  const connectorTypeImports: string[] = ['ListConnectorReturn'];
+  if (resource.detailEndpoint) {
+    connectorTypeImports.push('DetailConnectorReturn');
   }
+  if (resource.createEndpoint || resource.updateEndpoint) {
+    connectorTypeImports.push('FormConnectorReturn');
+  }
+  if (resource.deleteEndpoint) {
+    connectorTypeImports.push('DeleteConnectorReturn');
+  }
+  lines.push(`import type { ${connectorTypeImports.join(', ')} } from '#nxh/runtime/connector-types';`);
+  lines.push('');
+
+  // SDK request/response types (for the params overload signature)
+  if (resource.listEndpoint) {
+    const requestTypeName = `${pascalCase(resource.listEndpoint.operationId)}Request`;
+    lines.push(`import type { ${requestTypeName} } from '${sdkRelDir}';`);
+    lines.push('');
+  }
+
+  // runtime helpers (Nuxt alias — set up by the Nuxt module)
+  // useListConnector is always imported to support the optional factory pattern
+  const runtimeHelpers: string[] = ['useListConnector'];
   if (resource.detailEndpoint) {
     runtimeHelpers.push('useDetailConnector');
   }
@@ -142,6 +160,68 @@ function buildColumns(resource: ResourceInfo): string {
 }
 
 /**
+ * Build the TypeScript options interface for a connector.
+ * Only includes fields relevant to the endpoints present on the resource.
+ */
+function buildOptionsInterface(resource: ResourceInfo): string {
+  const typeName = `${pascalCase(resource.composableName)}Options`;
+  const hasColumns = resource.columns && resource.columns.length > 0;
+  const fields: string[] = [];
+
+  if (resource.listEndpoint && hasColumns) {
+    fields.push(`  columnLabels?: Record<string, string>;`);
+    fields.push(`  columnLabel?: (key: string) => string;`);
+  }
+  if (resource.createEndpoint && resource.zodSchemas.create) {
+    fields.push(`  createSchema?: z.ZodTypeAny | ((base: z.ZodTypeAny) => z.ZodTypeAny);`);
+  }
+  if (resource.updateEndpoint && resource.zodSchemas.update) {
+    fields.push(`  updateSchema?: z.ZodTypeAny | ((base: z.ZodTypeAny) => z.ZodTypeAny);`);
+  }
+
+  if (fields.length === 0) {
+    return `type ${typeName} = Record<string, never>;`;
+  }
+
+  return [`interface ${typeName} {`, ...fields, `}`].join('\n');
+}
+
+/**
+ * Build the TypeScript return type for a connector.
+ */
+function buildReturnType(resource: ResourceInfo): string {
+  const pascal = pascalCase(resource.name);
+  const typeName = `${pascalCase(resource.composableName)}Return`;
+  const fields: string[] = [];
+
+  // table is always present in the return type:
+  //   - if listEndpoint exists → ListConnectorReturn<T> (always defined)
+  //   - if no listEndpoint      → ListConnectorReturn<unknown> | undefined (only when factory passed)
+  if (resource.listEndpoint) {
+    fields.push(`  table: ListConnectorReturn<${pascal}>;`);
+  } else {
+    fields.push(`  table: ListConnectorReturn<unknown> | undefined;`);
+  }
+
+  if (resource.detailEndpoint) {
+    fields.push(`  detail: DetailConnectorReturn<${pascal}>;`);
+  }
+  if (resource.createEndpoint) {
+    const inputType = resource.zodSchemas.create ? `${pascal}CreateInput` : `Record<string, unknown>`;
+    fields.push(`  createForm: FormConnectorReturn<${inputType}>;`);
+  }
+  if (resource.updateEndpoint) {
+    const inputType = resource.zodSchemas.update ? `${pascal}UpdateInput` : `Record<string, unknown>`;
+    fields.push(`  updateForm: FormConnectorReturn<${inputType}>;`);
+  }
+  if (resource.deleteEndpoint) {
+    fields.push(`  deleteAction: DeleteConnectorReturn<${pascal}>;`);
+  }
+
+  return [`type ${typeName} = {`, ...fields, `};`].join('\n');
+}
+
+/**
  * Build the body of the exported connector function.
  */
 function buildFunctionBody(resource: ResourceInfo): string {
@@ -153,6 +233,10 @@ function buildFunctionBody(resource: ResourceInfo): string {
     .replace(/^./, (c) => c.toLowerCase());
   const columnsVar = `${camel}Columns`;
   const subConnectors: string[] = [];
+
+  // Derived type names — must match buildOptionsInterface / buildReturnType
+  const optionsTypeName = `${pascalCase(resource.composableName)}Options`;
+  const returnTypeName = `${pascalCase(resource.composableName)}Return`;
 
   // Destructure options param — only what's relevant for this resource
   const optionKeys: string[] = [];
@@ -169,67 +253,71 @@ function buildFunctionBody(resource: ResourceInfo): string {
   const optionsDestructure =
     optionKeys.length > 0 ? `  const { ${optionKeys.join(', ')} } = options;\n` : '';
 
+  // ── List / table sub-connector ─────────────────────────────────────────────
   if (resource.listEndpoint) {
     const fn = toAsyncDataName(resource.listEndpoint.operationId);
-    // paginated: true tells useListConnector to expose pagination helpers
-    // (goToPage, nextPage, prevPage, setPerPage, pagination ref).
-    // We set it whenever the spec declares a list endpoint that has a response schema,
-    // which is a reliable proxy for "this API returns structured data worth paginating".
+    const listRequestTypeName = `${pascalCase(resource.listEndpoint.operationId)}Request`;
     const paginatedFlag = resource.listEndpoint.responseSchema ? 'paginated: true' : '';
     const columnsArg = hasColumns ? `columns: ${columnsVar}` : '';
     const labelArgs = hasColumns ? 'columnLabels, columnLabel' : '';
     const allArgs = [paginatedFlag, columnsArg, labelArgs].filter(Boolean).join(', ');
     const opts = allArgs ? `{ ${allArgs} }` : '{}';
-    subConnectors.push(`  const table = useListConnector(${fn}, ${opts});`);
+
+    // Factory: if the first arg is a function the user provided their own composable;
+    // otherwise build a default factory from the plain params object.
+    subConnectors.push(
+      `  const isFactory = typeof paramsOrSource === 'function';`,
+      `  const listFactory = isFactory`,
+      `    ? (paramsOrSource as () => unknown)`,
+      `    : () => ${fn}((paramsOrSource ?? {}) as ${listRequestTypeName});`,
+      `  const table = useListConnector(listFactory, ${opts}) as unknown as ListConnectorReturn<${pascal}>;`
+    );
+  } else {
+    // No list endpoint — support optional factory for developer-provided list
+    subConnectors.push(
+      `  const table = paramsOrSource`,
+      `    ? (useListConnector(paramsOrSource as () => unknown, {}) as unknown as ListConnectorReturn<unknown>)`,
+      `    : undefined;`
+    );
   }
 
   if (resource.detailEndpoint) {
     const fn = toAsyncDataName(resource.detailEndpoint.operationId);
-    subConnectors.push(`  const detail = useDetailConnector(${fn});`);
+    subConnectors.push(`  const detail = useDetailConnector(${fn}) as unknown as DetailConnectorReturn<${pascal}>;`);
   }
 
   if (resource.createEndpoint) {
     const fn = toAsyncDataName(resource.createEndpoint.operationId);
+    const inputType = resource.zodSchemas.create ? `${pascal}CreateInput` : `Record<string, unknown>`;
     const schemaArg = resource.zodSchemas.create
       ? `{ schema: ${pascal}CreateSchema, schemaOverride: createSchema }`
       : '{}';
-    subConnectors.push(`  const createForm = useFormConnector(${fn}, ${schemaArg});`);
+    subConnectors.push(`  const createForm = useFormConnector(${fn}, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
   }
 
   if (resource.updateEndpoint) {
     const fn = toAsyncDataName(resource.updateEndpoint.operationId);
     const hasDetail = !!resource.detailEndpoint;
+    const inputType = resource.zodSchemas.update ? `${pascal}UpdateInput` : `Record<string, unknown>`;
 
-    // Build the options argument for useFormConnector:
-    //   schema      → Zod schema for client-side validation before submission
-    //   loadWith    → reference to the detail connector so the form auto-fills
-    //                 when detail.item changes (user clicks "Edit" on a row)
-    //
-    // Four combinations are possible depending on what the spec provides:
     let schemaArg = '{}';
     if (resource.zodSchemas.update && hasDetail) {
-      // Best case: validate AND pre-fill from detail
       schemaArg = `{ schema: ${pascal}UpdateSchema, schemaOverride: updateSchema, loadWith: detail }`;
     } else if (resource.zodSchemas.update) {
-      // Validate, but no detail endpoint to pre-fill from
       schemaArg = `{ schema: ${pascal}UpdateSchema, schemaOverride: updateSchema }`;
     } else if (hasDetail) {
-      // No Zod schema (no request body in spec), but still pre-fill from detail
       schemaArg = `{ loadWith: detail }`;
     }
-    subConnectors.push(`  const updateForm = useFormConnector(${fn}, ${schemaArg});`);
+    subConnectors.push(`  const updateForm = useFormConnector(${fn}, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
   }
 
   if (resource.deleteEndpoint) {
     const fn = toAsyncDataName(resource.deleteEndpoint.operationId);
-    subConnectors.push(`  const deleteAction = useDeleteConnector(${fn});`);
+    subConnectors.push(`  const deleteAction = useDeleteConnector(${fn}) as unknown as DeleteConnectorReturn<${pascal}>;`);
   }
 
-  // Return object — only include what was built
-  const returnKeys: string[] = [];
-  if (resource.listEndpoint) {
-    returnKeys.push('table');
-  }
+  // Return object — always includes table (undefined when no list + no factory)
+  const returnKeys: string[] = ['table'];
   if (resource.detailEndpoint) {
     returnKeys.push('detail');
   }
@@ -243,17 +331,36 @@ function buildFunctionBody(resource: ResourceInfo): string {
     returnKeys.push('deleteAction');
   }
 
-  const returnStatement = `  return { ${returnKeys.join(', ')} };`;
+  const returnStatement = `  return { ${returnKeys.join(', ')} } as ${returnTypeName};`;
 
-  return [
-    `export function ${resource.composableName}(options = {}) {`,
-    optionsDestructure.trimEnd(),
-    ...subConnectors,
-    returnStatement,
-    `}`,
-  ]
-    .filter((s) => s !== '')
-    .join('\n');
+  // ── Function signature ─────────────────────────────────────────────────────
+  // Resources WITH a list endpoint: two overloads (factory | params).
+  // Resources WITHOUT a list endpoint: single signature with optional factory.
+  const lines: string[] = [];
+
+  if (resource.listEndpoint) {
+    const listRequestTypeName = `${pascalCase(resource.listEndpoint.operationId)}Request`;
+    lines.push(
+      `export function ${resource.composableName}(source: () => unknown, options?: ${optionsTypeName}): ${returnTypeName};`,
+      `export function ${resource.composableName}(params?: ${listRequestTypeName}, options?: ${optionsTypeName}): ${returnTypeName};`,
+      `export function ${resource.composableName}(paramsOrSource?: ${listRequestTypeName} | (() => unknown), options: ${optionsTypeName} = {}): ${returnTypeName} {`
+    );
+  } else {
+    lines.push(
+      `export function ${resource.composableName}(source?: () => unknown, options: ${optionsTypeName} = {}): ${returnTypeName} {`
+    );
+    // Alias so the body can use paramsOrSource uniformly
+    lines.push(`  const paramsOrSource = source;`);
+  }
+
+  if (optionsDestructure.trim()) {
+    lines.push(optionsDestructure.trimEnd());
+  }
+  lines.push(...subConnectors);
+  lines.push(returnStatement);
+  lines.push(`}`);
+
+  return lines.join('\n');
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -265,16 +372,21 @@ function buildFunctionBody(resource: ResourceInfo): string {
  * @param composablesRelDir  Relative path from the connector dir to the
  *                           useAsyncData composables dir (e.g. '../use-async-data')
  */
-export function generateConnectorFile(resource: ResourceInfo, composablesRelDir: string): string {
+export function generateConnectorFile(
+  resource: ResourceInfo,
+  composablesRelDir: string,
+  sdkRelDir = '../..'
+): string {
   const header = generateFileHeader();
-  const imports = buildImports(resource, composablesRelDir);
+  const imports = buildImports(resource, composablesRelDir, sdkRelDir);
   const schemas = buildZodSchemas(resource);
   const columns = buildColumns(resource);
+  const optionsInterface = buildOptionsInterface(resource);
+  const returnType = buildReturnType(resource);
   const fn = buildFunctionBody(resource);
 
-  // Assemble file: header + imports + (optional) Zod blocks + columns const + function body.
-  // Each section ends with its own trailing newline; join with \n adds one blank
-  // line between sections, which matches Prettier's output for this structure.
+  // Assemble file: header + imports + (optional) Zod blocks + columns const +
+  // options interface + return type + function body.
   const parts: string[] = [header, imports];
   if (schemas.trim()) {
     parts.push(schemas);
@@ -282,6 +394,8 @@ export function generateConnectorFile(resource: ResourceInfo, composablesRelDir:
   if (columns.trim()) {
     parts.push(columns);
   }
+  parts.push(optionsInterface);
+  parts.push(returnType);
   parts.push(fn);
 
   return parts.join('\n') + '\n';
