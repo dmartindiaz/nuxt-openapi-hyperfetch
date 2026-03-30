@@ -21,6 +21,10 @@
 !docs/
 !docs/**
 
+# --- Keep: Public assets ---
+!public/
+!public/**
+
 # --- Keep: Root files (from package.json "files") ---
 !index.ts
 !CONTRIBUTING.md

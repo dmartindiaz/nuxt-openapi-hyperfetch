@@ -19,7 +19,15 @@ import { mergeZodErrors } from './zod-error-merger.js';
  * @param options        { schema, fields, loadWith?, errorConfig? }
  */
 export function useFormConnector(composableFn, options = {}) {
-  const { schema, fields = [], loadWith = null, errorConfig = {} } = options;
+  const { schema: baseSchema, schemaOverride, fields = [], loadWith = null, errorConfig = {} } = options;
+
+  // Resolve the active schema:
+  //   schemaOverride(base) — extend or refine the generated schema
+  //   schemaOverride        — replace the generated schema entirely
+  //   baseSchema            — the generated schema unchanged (default)
+  const schema = schemaOverride
+    ? (typeof schemaOverride === 'function' ? schemaOverride(baseSchema) : schemaOverride)
+    : baseSchema;
 
   // ── Form state ─────────────────────────────────────────────────────────────
 

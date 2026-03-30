@@ -1,4 +1,8 @@
-﻿# 🚀 Nuxt OpenAPI Generator
+﻿<p align="center">
+  <img src="./public/nuxt-openapi-hyperfetch-logo.png" alt="Nuxt OpenAPI Hyperfetch logo" width="260" />
+</p>
+
+# 🚀 Nuxt OpenAPI Generator
 
 **Generate type-safe, SSR-compatible Nuxt composables from OpenAPI/Swagger specifications.**
 
@@ -6,7 +10,7 @@
 
 ---
 
-Transform your API documentation into production-ready **100% Nuxt-native** code—`useFetch` composables, `useAsyncData` composables, and Nuxt Server Routes—with full TypeScript support, lifecycle callbacks, and request interception. No third-party runtime, no wrappers: just Nuxt.
+Transform your API documentation into production-ready **100% Nuxt-native** code—`useFetch` composables, `useAsyncData` composables, and Nuxt Server Routes—with full TypeScript support, lifecycle callbacks, and request interception. Use it either as a CLI with `nxh generate` or as a Nuxt module wired directly from `nuxt.config.ts`.
 
 ---
 
@@ -52,6 +56,8 @@ export default {
 
 ## 📦 Installation
 
+### Use as CLI
+
 ```bash
 npm install -g nuxt-openapi-hyperfetch
 # or
@@ -66,11 +72,49 @@ Or use directly with npx:
 npx nuxt-openapi-hyperfetch generate
 ```
 
+### Use as Nuxt module
+
+Install it in your Nuxt project:
+
+```bash
+npm install -D nuxt-openapi-hyperfetch
+# or
+pnpm add -D nuxt-openapi-hyperfetch
+# or
+yarn add -D nuxt-openapi-hyperfetch
+```
+
+Then register the module in `nuxt.config.ts`:
+
+```ts
+export default defineNuxtConfig({
+  modules: ['nuxt-openapi-hyperfetch'],
+
+  openApiHyperFetch: {
+    input: './swagger.yaml',
+    output: './composables/api',
+    generators: ['useFetch', 'useAsyncData'],
+    backend: 'heyapi',
+    enableDevBuild: true,
+    enableProductionBuild: true,
+    enableAutoGeneration: false,
+    enableAutoImport: true,
+    createUseAsyncDataConnectors: false,
+  },
+})
+```
+
+The module uses `openApiHyperFetch` as its Nuxt config key and runs generation during Nuxt build hooks. If you include `nuxtServer` in `generators`, you can also configure `serverRoutePath` and `enableBff` here.
+
 ---
 
 ## 🚀 Quick Start
 
-### 1. Run the generator
+### 1. Run the generator with the CLI
+
+<p align="center">
+  <img src="./public/nuxt-openapi-hyperfetch-cli.png" alt="Nuxt OpenAPI Hyperfetch CLI" width="720" />
+</p>
 
 ```bash
 nxh generate
@@ -89,7 +133,41 @@ Or pass arguments directly:
 nxh generate -i ./swagger.yaml -o ./api
 ```
 
-### 2. Generated output
+### 2. Or generate through the Nuxt module
+
+If you prefer generation to run from Nuxt itself, add the module and configure it in `nuxt.config.ts`:
+
+```ts
+export default defineNuxtConfig({
+  modules: ['nuxt-openapi-hyperfetch'],
+
+  openApiHyperFetch: {
+    input: './swagger.yaml',
+    output: './composables/api',
+    generators: ['useFetch', 'useAsyncData', 'nuxtServer'],
+    backend: 'heyapi',
+    serverRoutePath: 'server/routes/api',
+    enableBff: false,
+    enableAutoImport: true,
+    enableAutoGeneration: true,
+  },
+})
+```
+
+Useful module options:
+
+- `input`: OpenAPI file path relative to the Nuxt root.
+- `output`: Directory where the generated SDK/composables are written.
+- `generators`: Any combination of `useFetch`, `useAsyncData`, and `nuxtServer`.
+- `backend`: `heyapi` or `official`.
+- `enableDevBuild` / `enableProductionBuild`: Control generation before dev/build.
+- `enableAutoGeneration`: Regenerate when the input spec changes in dev mode.
+- `enableAutoImport`: Auto-register generated composables for Nuxt auto-imports.
+- `createUseAsyncDataConnectors`: Generate headless connectors on top of `useAsyncData`.
+- `serverRoutePath`: Output path for generated Nuxt server routes.
+- `enableBff`: Enable the BFF transformer layer for server routes.
+
+### 3. Generated output
 
 ```
 api/
@@ -110,7 +188,7 @@ api/
         +-- index.ts
 ```
 
-### 3. Configure the API base URL
+### 4. Configure the API base URL
 
 Add to `nuxt.config.ts`:
 
@@ -132,7 +210,7 @@ NUXT_PUBLIC_API_BASE_URL=https://api.example.com
 
 All generated `useFetch` and `useAsyncData` composables will automatically use this as `baseURL`. You can still override it per-composable via `options.baseURL`.
 
-### 4. Use in your Nuxt app
+### 5. Use in your Nuxt app
 
 ```vue
 <script setup lang="ts">

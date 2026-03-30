@@ -123,11 +123,51 @@ function buildZodSchemas(resource: ResourceInfo): string {
 }
 
 /**
+ * Build a const array with the column definitions inferred from the resource.
+ * Returns an empty string if the resource has no columns.
+ */
+function buildColumns(resource: ResourceInfo): string {
+  if (!resource.columns || resource.columns.length === 0) {
+    return '';
+  }
+  const camel = resource.composableName
+    .replace(/^use/, '')
+    .replace(/Connector$/, '')
+    .replace(/^./, (c) => c.toLowerCase());
+  const varName = `${camel}Columns`;
+  const entries = resource.columns
+    .map((col) => `  { key: '${col.key}', label: '${col.label}', type: '${col.type}' }`)
+    .join(',\n');
+  return `const ${varName} = [\n${entries},\n];`;
+}
+
+/**
  * Build the body of the exported connector function.
  */
 function buildFunctionBody(resource: ResourceInfo): string {
   const pascal = pascalCase(resource.name);
+  const hasColumns = resource.columns && resource.columns.length > 0;
+  const camel = resource.composableName
+    .replace(/^use/, '')
+    .replace(/Connector$/, '')
+    .replace(/^./, (c) => c.toLowerCase());
+  const columnsVar = `${camel}Columns`;
   const subConnectors: string[] = [];
+
+  // Destructure options param — only what's relevant for this resource
+  const optionKeys: string[] = [];
+  if (resource.listEndpoint && hasColumns) {
+    optionKeys.push('columnLabels', 'columnLabel');
+  }
+  if (resource.createEndpoint && resource.zodSchemas.create) {
+    optionKeys.push('createSchema');
+  }
+  if (resource.updateEndpoint && resource.zodSchemas.update) {
+    optionKeys.push('updateSchema');
+  }
+
+  const optionsDestructure =
+    optionKeys.length > 0 ? `  const { ${optionKeys.join(', ')} } = options;\n` : '';
 
   if (resource.listEndpoint) {
     const fn = toAsyncDataName(resource.listEndpoint.operationId);
@@ -135,7 +175,11 @@ function buildFunctionBody(resource: ResourceInfo): string {
     // (goToPage, nextPage, prevPage, setPerPage, pagination ref).
     // We set it whenever the spec declares a list endpoint that has a response schema,
     // which is a reliable proxy for "this API returns structured data worth paginating".
-    const opts = resource.listEndpoint.responseSchema ? '{ paginated: true }' : '{}';
+    const paginatedFlag = resource.listEndpoint.responseSchema ? 'paginated: true' : '';
+    const columnsArg = hasColumns ? `columns: ${columnsVar}` : '';
+    const labelArgs = hasColumns ? 'columnLabels, columnLabel' : '';
+    const allArgs = [paginatedFlag, columnsArg, labelArgs].filter(Boolean).join(', ');
+    const opts = allArgs ? `{ ${allArgs} }` : '{}';
     subConnectors.push(`  const table = useListConnector(${fn}, ${opts});`);
   }
 
@@ -146,7 +190,9 @@ function buildFunctionBody(resource: ResourceInfo): string {
 
   if (resource.createEndpoint) {
     const fn = toAsyncDataName(resource.createEndpoint.operationId);
-    const schemaArg = resource.zodSchemas.create ? `{ schema: ${pascal}CreateSchema }` : '{}';
+    const schemaArg = resource.zodSchemas.create
+      ? `{ schema: ${pascal}CreateSchema, schemaOverride: createSchema }`
+      : '{}';
     subConnectors.push(`  const createForm = useFormConnector(${fn}, ${schemaArg});`);
   }
 
@@ -163,10 +209,10 @@ function buildFunctionBody(resource: ResourceInfo): string {
     let schemaArg = '{}';
     if (resource.zodSchemas.update && hasDetail) {
       // Best case: validate AND pre-fill from detail
-      schemaArg = `{ schema: ${pascal}UpdateSchema, loadWith: detail }`;
+      schemaArg = `{ schema: ${pascal}UpdateSchema, schemaOverride: updateSchema, loadWith: detail }`;
     } else if (resource.zodSchemas.update) {
       // Validate, but no detail endpoint to pre-fill from
-      schemaArg = `{ schema: ${pascal}UpdateSchema }`;
+      schemaArg = `{ schema: ${pascal}UpdateSchema, schemaOverride: updateSchema }`;
     } else if (hasDetail) {
       // No Zod schema (no request body in spec), but still pre-fill from detail
       schemaArg = `{ loadWith: detail }`;
@@ -200,11 +246,14 @@ function buildFunctionBody(resource: ResourceInfo): string {
   const returnStatement = `  return { ${returnKeys.join(', ')} };`;
 
   return [
-    `export function ${resource.composableName}() {`,
+    `export function ${resource.composableName}(options = {}) {`,
+    optionsDestructure.trimEnd(),
     ...subConnectors,
     returnStatement,
     `}`,
-  ].join('\n');
+  ]
+    .filter((s) => s !== '')
+    .join('\n');
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -220,14 +269,18 @@ export function generateConnectorFile(resource: ResourceInfo, composablesRelDir:
   const header = generateFileHeader();
   const imports = buildImports(resource, composablesRelDir);
   const schemas = buildZodSchemas(resource);
+  const columns = buildColumns(resource);
   const fn = buildFunctionBody(resource);
 
-  // Assemble file: header + imports + (optional) Zod blocks + function body.
+  // Assemble file: header + imports + (optional) Zod blocks + columns const + function body.
   // Each section ends with its own trailing newline; join with \n adds one blank
   // line between sections, which matches Prettier's output for this structure.
   const parts: string[] = [header, imports];
   if (schemas.trim()) {
     parts.push(schemas);
+  }
+  if (columns.trim()) {
+    parts.push(columns);
   }
   parts.push(fn);
 

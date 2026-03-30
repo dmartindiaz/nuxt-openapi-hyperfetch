@@ -315,10 +315,10 @@ export function useApiAsyncDataRaw<T>(
       ...paginationState.value,
       hasNextPage: hasNextPage.value,
       hasPrevPage: hasPrevPage.value,
+      goToPage,
+      nextPage,
+      prevPage,
+      setPerPage,
     })),
-    goToPage,
-    nextPage,
-    prevPage,
-    setPerPage,
   };
 }

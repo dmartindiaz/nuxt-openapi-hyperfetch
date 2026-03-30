@@ -17,7 +17,7 @@ import { ref, computed, shallowRef } from 'vue';
  * @param options       Configuration for the list connector
  */
 export function useListConnector(composableFn, options = {}) {
-  const { paginated = false, columns = [] } = options;
+  const { paginated = false, columns = [], columnLabels = {}, columnLabel = null } = options;
 
   // ── Execute the underlying composable ──────────────────────────────────────
   const composable = composableFn({ paginated });
@@ -40,19 +40,19 @@ export function useListConnector(composableFn, options = {}) {
   const pagination = computed(() => composable.pagination?.value ?? null);
 
   function goToPage(page) {
-    composable.goToPage?.(page);
+    composable.pagination?.value?.goToPage?.(page);
   }
 
   function nextPage() {
-    composable.nextPage?.();
+    composable.pagination?.value?.nextPage?.();
   }
 
   function prevPage() {
-    composable.prevPage?.();
+    composable.pagination?.value?.prevPage?.();
   }
 
   function setPerPage(n) {
-    composable.setPerPage?.(n);
+    composable.pagination?.value?.setPerPage?.(n);
   }
 
   // ── Row selection ──────────────────────────────────────────────────────────
@@ -113,10 +113,20 @@ export function useListConnector(composableFn, options = {}) {
     _deleteTarget.value = row;
   }
 
+  // Apply label overrides: columnLabel function takes priority over columnLabels map
+  const resolvedColumns = computed(() =>
+    columns.map((col) => ({
+      ...col,
+      label: columnLabel
+        ? columnLabel(col.key)
+        : (columnLabels[col.key] ?? col.label),
+    }))
+  );
+
   return {
     // State
     rows,
-    columns: computed(() => columns),
+    columns: resolvedColumns,
     loading,
     error,
 
