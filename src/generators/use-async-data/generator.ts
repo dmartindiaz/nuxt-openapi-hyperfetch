@@ -104,6 +104,14 @@ export async function generateUseAsyncDataComposables(
   );
   const sharedHelpersDest = path.join(sharedRuntimeDir, 'apiHelpers.ts');
   await fs.copyFile(sharedHelpersSource, sharedHelpersDest);
+
+  // Copy shared pagination.ts
+  const sharedPaginationSource = path.resolve(
+    __dirname,
+    '../../../src/generators/shared/runtime/pagination.ts'
+  );
+  const sharedPaginationDest = path.join(sharedRuntimeDir, 'pagination.ts');
+  await fs.copyFile(sharedPaginationSource, sharedPaginationDest);
   mainSpinner.stop('Runtime files copied');
 
   // 5. Calculate relative import path from composables to APIs
