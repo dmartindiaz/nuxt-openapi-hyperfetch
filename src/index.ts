@@ -5,6 +5,7 @@ import { generateOpenApiFiles, generateHeyApiFiles, checkJavaInstalled } from '.
 import { generateUseFetchComposables } from './generators/use-fetch/generator.js';
 import { generateUseAsyncDataComposables } from './generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from './generators/nuxt-server/generator.js';
+import { generateConnectors } from './generators/components/connector-generator/generator.js';
 import {
   promptInitialInputs,
   promptInputPath,
@@ -12,6 +13,7 @@ import {
   promptServerRoutePath,
   promptBffConfig,
   promptGeneratorBackend,
+  promptConnectors,
 } from './cli/prompts.js';
 import { MESSAGES } from './cli/messages.js';
 import { displayLogo } from './cli/logo.js';
@@ -36,6 +38,7 @@ interface GenerateOptions {
   serverRoutePath?: string;
   enableBff?: boolean;
   backend?: string;
+  connectors?: boolean;
 }
 
 program
@@ -52,6 +55,7 @@ program
   .option('-v, --verbose', 'Enable verbose logging', false)
   .option('--watch', 'Watch mode - regenerate on file changes', false)
   .option('--generators <types>', 'Generators to use: useFetch,useAsyncData,nuxtServer')
+  .option('--connectors', 'Generate headless UI connectors on top of useAsyncData', false)
   .option('--server-route-path <path>', 'Server route path (for nuxtServer mode)')
   .option('--enable-bff', 'Enable BFF pattern (for nuxtServer mode)', false)
   .option('--backend <type>', 'Generator backend: official (Java) or heyapi (Node.js)')
@@ -83,6 +87,8 @@ program
           options.backend === 'official' || options.backend === 'heyapi'
             ? options.backend
             : undefined,
+        // Only propagate if explicitly passed — undefined means "ask the user"
+        createUseAsyncDataConnectors: options.connectors === true ? true : undefined,
       });
 
       if (config.verbose) {
@@ -124,7 +130,10 @@ program
       let composables: ('useFetch' | 'useAsyncData' | 'nuxtServer')[];
 
       if (config.generators) {
-        composables = config.generators;
+        // filter out 'connectors' — handled separately below
+        composables = config.generators.filter(
+          (g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' => g !== 'connectors'
+        );
         if (config.verbose) {
           console.log(`Using generators from config: ${composables.join(', ')}`);
         }
@@ -156,7 +165,17 @@ program
         outputPath = config.output ?? './swagger';
       }
 
-      // 3. Ask for server route path if nuxtServer is selected
+      // 3. Ask whether to generate headless connectors (only if useAsyncData selected)
+      let generateConnectorsFlag = false;
+      if (composables.includes('useAsyncData')) {
+        if (config.createUseAsyncDataConnectors !== undefined) {
+          generateConnectorsFlag = config.createUseAsyncDataConnectors;
+        } else {
+          generateConnectorsFlag = await promptConnectors();
+        }
+      }
+
+      // 4. Ask for server route path if nuxtServer is selected
       let serverRoutePath = config.serverRoutePath || '';
       let enableBff = config.enableBff || false;
 
@@ -229,6 +248,28 @@ program
           }
         } catch (error) {
           spinner.stop(`✗ Failed to generate ${composable}`);
+          throw error;
+        }
+      }
+
+      // Generate headless connectors if requested (requires useAsyncData)
+      if (generateConnectorsFlag) {
+        const spinner = p.spinner();
+        spinner.start('Generating headless UI connectors...');
+        try {
+          if (!config.dryRun) {
+            await generateConnectors({
+              inputSpec: inputPath,
+              outputDir: `${composablesOutputDir}/connectors`,
+              composablesRelDir: '../use-async-data',
+              runtimeRelDir: '../../runtime',
+            });
+            spinner.stop('✓ Generated headless UI connectors');
+          } else {
+            spinner.stop('Would generate headless UI connectors (dry-run)');
+          }
+        } catch (error) {
+          spinner.stop('✗ Failed to generate connectors');
           throw error;
         }
       }

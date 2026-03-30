@@ -67,6 +67,10 @@ export const CHOICES = {
     },
   ],
 
+  // Connectors prompt (shown only when useAsyncData is selected)
+  connectorsPrompt:
+    'Generate headless UI connectors? (tables, pagination, forms & delete logic built on top of useAsyncData)',
+
   // Server path options
   serverPaths: [
     {

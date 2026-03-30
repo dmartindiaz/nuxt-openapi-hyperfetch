@@ -45,22 +45,29 @@ export interface FinishContext<T> {
 }
 
 /**
- * Global callbacks configuration
- * Can be provided via Nuxt plugin: $getGlobalApiCallbacks
+ * A single rule in the global callbacks configuration.
+ * Each rule independently targets specific URL patterns and/or HTTP methods.
+ * Rules are executed in order; any rule may return false to suppress the local callback.
  */
-export interface GlobalCallbacksConfig {
+export interface GlobalCallbacksRule {
   /**
-   * Optional URL patterns to match (Opción 3)
-   * Only apply global callbacks to URLs matching these patterns
+   * URL glob patterns — only apply this rule to matching URLs.
    * Supports wildcards: '/api/**', '/api/public/*', etc.
-   * If omitted, callbacks apply to all requests
+   * If omitted, the rule applies to all URLs.
    */
   patterns?: string[];
 
   /**
-   * Called before every request matching patterns
-   * Return false to prevent local callback execution (Opción 2)
-   * Return modified context to change request
+   * HTTP methods — only apply this rule to matching methods (case-insensitive).
+   * Example: ['DELETE', 'POST']
+   * If omitted, the rule applies to all methods.
+   */
+  methods?: string[];
+
+  /**
+   * Called before the request is sent.
+   * Return modified context (headers/body/query) to alter the request.
+   * Return false to prevent local onRequest execution (Opción 2).
    */
   onRequest?: (
     context: RequestContext
@@ -73,23 +80,41 @@ export interface GlobalCallbacksConfig {
     | Promise<boolean>;
 
   /**
-   * Called when request succeeds
-   * Return false to prevent local callback execution (Opción 2)
+   * Called when the request succeeds.
+   * Return false to prevent local onSuccess execution (Opción 2).
    */
   onSuccess?: (data: any, context?: any) => void | Promise<void> | boolean | Promise<boolean>;
 
   /**
-   * Called when request fails
-   * Return false to prevent local callback execution (Opción 2)
+   * Called when the request fails.
+   * Return false to prevent local onError execution (Opción 2).
    */
   onError?: (error: any, context?: any) => void | Promise<void> | boolean | Promise<boolean>;
 
   /**
-   * Called when request finishes (success or error)
-   * Return false to prevent local callback execution (Opción 2)
+   * Called when the request finishes (success or error).
+   * Return false to prevent local onFinish execution (Opción 2).
    */
   onFinish?: (context: FinishContext<any>) => void | Promise<void> | boolean | Promise<boolean>;
 }
+
+/**
+ * Global callbacks configuration.
+ * Accepts a single rule (backward-compatible) or an array of rules.
+ * Each rule can independently target URLs and HTTP methods.
+ * Provided via Nuxt plugin: $getGlobalApiCallbacks
+ *
+ * @example Single rule (backward-compatible)
+ * getGlobalApiCallbacks: () => ({ onError: (e) => console.error(e) })
+ *
+ * @example Multiple rules with method/pattern targeting
+ * getGlobalApiCallbacks: () => [
+ *   { onRequest: (ctx) => console.log(ctx.url) },
+ *   { methods: ['DELETE'], onSuccess: () => toast.success('Deleted!') },
+ *   { patterns: ['/api/private/**'], onRequest: () => ({ headers: { Authorization: '...' } }) },
+ * ]
+ */
+export type GlobalCallbacksConfig = GlobalCallbacksRule | GlobalCallbacksRule[];
 
 /**
  * Type for skipGlobalCallbacks option (Opción 1)
@@ -154,6 +179,34 @@ export interface ApiRequestOptions<T = any> {
    * Useful for manual cache control or sharing cache between components.
    */
   cacheKey?: string;
+
+  // --- Pagination options ---
+
+  /**
+   * Enable pagination for this request.
+   * When true, the composable injects page/perPage params and exposes `pagination` state + helpers.
+   * Uses global pagination config by default (set via plugins/api-pagination.ts).
+   * @example
+   * const { data, pagination, goToPage, nextPage, prevPage, setPerPage } = useGetPets(params, { paginated: true })
+   */
+  paginated?: boolean;
+
+  /**
+   * Initial page number. Defaults to global config default (usually 1).
+   */
+  initialPage?: number;
+
+  /**
+   * Initial page size. Defaults to global config default (usually 20).
+   */
+  initialPerPage?: number;
+
+  /**
+   * Per-request pagination config override.
+   * Takes priority over the global pagination config set in plugins/api-pagination.ts.
+   * Useful when one specific endpoint has a different pagination convention.
+   */
+  paginationConfig?: import('./pagination.js').PaginationConfig;
 
   // --- Common fetch options (available in all composables) ---
 
@@ -285,25 +338,28 @@ export function getGlobalHeaders(): Record<string, string> {
 }
 
 /**
- * Helper function to get global callbacks from user configuration
+ * Helper function to get global callback rules from user configuration.
+ * Always returns a normalized array — wraps legacy single-object config automatically for
+ * full backward compatibility.
  * Uses Nuxt plugin provide: plugins/api-callbacks.ts with $getGlobalApiCallbacks
  */
-export function getGlobalCallbacks(): GlobalCallbacksConfig {
+export function getGlobalCallbacks(): GlobalCallbacksRule[] {
   try {
     const nuxtApp = useNuxtApp();
     // @ts-ignore - $getGlobalApiCallbacks may or may not exist (user-defined)
     if (nuxtApp.$getGlobalApiCallbacks) {
       // @ts-ignore
-      const callbacks = nuxtApp.$getGlobalApiCallbacks();
-      if (callbacks && typeof callbacks === 'object') {
-        return callbacks;
+      const config: GlobalCallbacksConfig = nuxtApp.$getGlobalApiCallbacks();
+      if (config && typeof config === 'object') {
+        // Normalize: wrap single-rule object in array for backward compatibility
+        return Array.isArray(config) ? config : [config];
       }
     }
   } catch (e) {
     // useNuxtApp not available or plugin not configured, that's OK
   }
 
-  return {};
+  return [];
 }
 
 /**
@@ -322,53 +378,52 @@ export function getGlobalBaseUrl(): string | undefined {
 }
 
 /**
- * Check if a global callback should be applied to a specific request
- * Implements Opción 1 (skipGlobalCallbacks) and Opción 3 (pattern matching)
+ * Check if a global rule should be applied to a specific request.
+ * Implements Opción 1 (skipGlobalCallbacks), URL pattern matching, and HTTP method matching.
  */
 export function shouldApplyGlobalCallback(
   url: string,
+  method: string,
   callbackName: 'onRequest' | 'onSuccess' | 'onError' | 'onFinish',
-  patterns?: string[],
+  rule: GlobalCallbacksRule,
   skipConfig?: SkipGlobalCallbacks
 ): boolean {
   // Opción 1: Check if callback is skipped via skipGlobalCallbacks
-  if (skipConfig === true) {
-    return false; // Skip all global callbacks
-  }
+  if (skipConfig === true) return false;
+  if (Array.isArray(skipConfig) && skipConfig.includes(callbackName)) return false;
 
-  if (Array.isArray(skipConfig) && skipConfig.includes(callbackName)) {
-    return false; // Skip this specific callback
-  }
-
-  // Opción 3: Check pattern matching
-  if (patterns && patterns.length > 0) {
-    return patterns.some((pattern) => {
-      // Convert glob pattern to regex
-      // ** matches any characters including /
-      // * matches any characters except /
+  // URL pattern matching — if patterns defined, URL must match at least one
+  if (rule.patterns && rule.patterns.length > 0) {
+    const matchesUrl = rule.patterns.some((pattern) => {
+      // Convert glob pattern to regex: ** = any path, * = single segment
       const regexPattern = pattern
         .replace(/\*\*/g, '@@DOUBLE_STAR@@')
         .replace(/\*/g, '[^/]*')
         .replace(/@@DOUBLE_STAR@@/g, '.*');
-
-      const regex = new RegExp('^' + regexPattern + '$');
-      return regex.test(url);
+      return new RegExp('^' + regexPattern + '$').test(url);
     });
+    if (!matchesUrl) return false;
   }
 
-  // By default, apply global callback
+  // Method matching — if methods defined, request method must match at least one
+  if (rule.methods && rule.methods.length > 0) {
+    if (!rule.methods.map((m) => m.toUpperCase()).includes(method.toUpperCase())) return false;
+  }
+
   return true;
 }
 
 /**
- * Merge local and global callbacks with proper execution order
+ * Merge local and global callback rules with proper execution order.
+ * Global rules are iterated in definition order. Any rule returning false suppresses the local callback.
  * Implements all 3 options:
- * - Opción 1: skipGlobalCallbacks to disable global callbacks
- * - Opción 2: global callbacks can return false to prevent local execution
- * - Opción 3: pattern matching to apply callbacks only to matching URLs
+ * - Opción 1: skipGlobalCallbacks to disable all global rules per request
+ * - Opción 2: a rule callback can return false to prevent local callback execution
+ * - Opción 3: per-rule URL pattern matching and HTTP method filtering
  */
 export function mergeCallbacks(
   url: string,
+  method: string,
   localCallbacks: {
     onRequest?: Function;
     onSuccess?: Function;
@@ -377,128 +432,101 @@ export function mergeCallbacks(
   },
   skipConfig?: SkipGlobalCallbacks
 ) {
-  const global = getGlobalCallbacks();
+  const rules = getGlobalCallbacks();
+
+  /**
+   * Iterate all applicable global rules for onSuccess, onError, or onFinish.
+   * Returns true if the local callback should still execute.
+   */
+  async function runGlobalRules(
+    callbackName: 'onSuccess' | 'onError' | 'onFinish',
+    ...args: any[]
+  ): Promise<boolean> {
+    let continueLocal = true;
+    for (const rule of rules) {
+      const cb = rule[callbackName];
+      if (!cb || !shouldApplyGlobalCallback(url, method, callbackName, rule, skipConfig)) continue;
+      try {
+        const result = await (cb as Function)(...args);
+        // Opción 2: returning false from any rule suppresses the local callback
+        if (result === false) continueLocal = false;
+      } catch (error) {
+        console.error(`Error in global ${callbackName} callback:`, error);
+      }
+    }
+    return continueLocal;
+  }
 
   return {
     /**
-     * Merged onRequest callback
-     * Executes global first, then local
-     * Global can return modifications or false to cancel local
+     * Merged onRequest: runs all applicable global rules collecting and deep-merging
+     * modifications (headers and query are merged; body is last-write-wins).
+     * Local onRequest runs after all rules unless any returns false, and its
+     * modifications take highest priority.
      */
     onRequest: async (ctx: RequestContext) => {
-      // Execute global onRequest
-      if (
-        shouldApplyGlobalCallback(url, 'onRequest', global.patterns, skipConfig) &&
-        global.onRequest
-      ) {
+      let mergedMods: ModifiedRequestContext | undefined;
+      let continueLocal = true;
+
+      for (const rule of rules) {
+        if (!rule.onRequest || !shouldApplyGlobalCallback(url, method, 'onRequest', rule, skipConfig)) continue;
         try {
-          const result = await global.onRequest(ctx);
-
-          // Opción 2: If global returns false, don't execute local
+          const result = await rule.onRequest(ctx);
           if (result === false) {
-            return;
-          }
-
-          // If global returns modified context, use it
-          if (result && typeof result === 'object' && !('then' in result)) {
-            return result;
+            continueLocal = false;
+          } else if (result && typeof result === 'object') {
+            const mod = result as ModifiedRequestContext;
+            // Deep-merge headers and query; body is last-write-wins
+            mergedMods = {
+              ...(mergedMods ?? {}),
+              ...mod,
+              headers: { ...(mergedMods?.headers ?? {}), ...(mod.headers ?? {}) },
+              query: { ...(mergedMods?.query ?? {}), ...(mod.query ?? {}) },
+            };
           }
         } catch (error) {
           console.error('Error in global onRequest callback:', error);
         }
       }
 
-      // Execute local onRequest
-      if (localCallbacks.onRequest) {
-        return await localCallbacks.onRequest(ctx);
-      }
-    },
-
-    /**
-     * Merged onSuccess callback
-     * Executes global first, then local (if global doesn't return false)
-     */
-    onSuccess: async (data: any, context?: any) => {
-      let continueLocal = true;
-
-      // Execute global onSuccess
-      if (
-        shouldApplyGlobalCallback(url, 'onSuccess', global.patterns, skipConfig) &&
-        global.onSuccess
-      ) {
-        try {
-          const result = await global.onSuccess(data, context);
-
-          // Opción 2: If global returns false, don't execute local
-          if (result === false) {
-            continueLocal = false;
-          }
-        } catch (error) {
-          console.error('Error in global onSuccess callback:', error);
+      // Execute local onRequest — its modifications take highest priority
+      if (continueLocal && localCallbacks.onRequest) {
+        const localResult = await localCallbacks.onRequest(ctx);
+        if (localResult && typeof localResult === 'object') {
+          const localMod = localResult as ModifiedRequestContext;
+          return mergedMods
+            ? {
+                ...mergedMods,
+                ...localMod,
+                headers: { ...(mergedMods.headers ?? {}), ...(localMod.headers ?? {}) },
+                query: { ...(mergedMods.query ?? {}), ...(localMod.query ?? {}) },
+              }
+            : localMod;
         }
       }
 
-      // Execute local onSuccess (if not cancelled)
+      return mergedMods;
+    },
+
+    /** Merged onSuccess: global rules first in order, then local (unless suppressed). */
+    onSuccess: async (data: any, context?: any) => {
+      const continueLocal = await runGlobalRules('onSuccess', data, context);
       if (continueLocal && localCallbacks.onSuccess) {
         await localCallbacks.onSuccess(data, context);
       }
     },
 
-    /**
-     * Merged onError callback
-     * Executes global first, then local (if global doesn't return false)
-     */
+    /** Merged onError: global rules first in order, then local (unless suppressed). */
     onError: async (error: any, context?: any) => {
-      let continueLocal = true;
-
-      // Execute global onError
-      if (
-        shouldApplyGlobalCallback(url, 'onError', global.patterns, skipConfig) &&
-        global.onError
-      ) {
-        try {
-          const result = await global.onError(error, context);
-
-          // Opción 2: If global returns false, don't execute local
-          if (result === false) {
-            continueLocal = false;
-          }
-        } catch (error) {
-          console.error('Error in global onError callback:', error);
-        }
-      }
-
-      // Execute local onError (if not cancelled)
+      const continueLocal = await runGlobalRules('onError', error, context);
       if (continueLocal && localCallbacks.onError) {
         await localCallbacks.onError(error, context);
       }
     },
 
-    /**
-     * Merged onFinish callback
-     * Executes global first, then local (if global doesn't return false)
-     */
+    /** Merged onFinish: global rules first in order, then local (unless suppressed). */
     onFinish: async (context: any) => {
-      let continueLocal = true;
-
-      // Execute global onFinish
-      if (
-        shouldApplyGlobalCallback(url, 'onFinish', global.patterns, skipConfig) &&
-        global.onFinish
-      ) {
-        try {
-          const result = await global.onFinish(context);
-
-          // Opción 2: If global returns false, don't execute local
-          if (result === false) {
-            continueLocal = false;
-          }
-        } catch (error) {
-          console.error('Error in global onFinish callback:', error);
-        }
-      }
-
-      // Execute local onFinish (if not cancelled)
+      const continueLocal = await runGlobalRules('onFinish', context);
       if (continueLocal && localCallbacks.onFinish) {
         await localCallbacks.onFinish(context);
       }

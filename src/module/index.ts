@@ -5,6 +5,7 @@ import { checkJavaInstalled } from '../generate.js';
 import { generateUseFetchComposables } from '../generators/use-fetch/generator.js';
 import { generateUseAsyncDataComposables } from '../generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from '../generators/nuxt-server/generator.js';
+import { generateConnectors } from '../generators/components/connector-generator/generator.js';
 import { createConsoleLogger } from '../cli/logger.js';
 import type { ModuleOptions } from './types.js';
 
@@ -22,6 +23,7 @@ export default defineNuxtModule<ModuleOptions>({
     enableProductionBuild: true,
     enableAutoGeneration: false,
     enableAutoImport: true,
+    createUseAsyncDataConnectors: false,
   },
 
   setup(options: ModuleOptions, nuxt) {
@@ -99,6 +101,26 @@ export default defineNuxtModule<ModuleOptions>({
           logger
         );
       }
+
+      // 3. Generate headless connectors if requested (requires useAsyncData)
+      if (
+        options.createUseAsyncDataConnectors &&
+        selectedGenerators.includes('useAsyncData')
+      ) {
+        const connectorsOutputDir = path.join(composablesOutputDir, 'connectors');
+        const runtimeDir = path.join(resolvedOutput, 'runtime');
+        await generateConnectors(
+          {
+            inputSpec: resolvedInput,
+            outputDir: connectorsOutputDir,
+            composablesRelDir: '../use-async-data',
+            runtimeRelDir: '../../runtime',
+          },
+          logger
+        );
+        // Register #nxh alias so generated connector imports resolve
+        nuxt.options.alias['#nxh'] = runtimeDir;
+      }
     };
 
     // --- Hooks: dev build / production build ---
@@ -125,6 +147,9 @@ export default defineNuxtModule<ModuleOptions>({
       }
       if (selectedGenerators.includes('useAsyncData')) {
         addImportsDir(path.join(composablesOutputDir, 'use-async-data', 'composables'));
+      }
+      if (options.createUseAsyncDataConnectors && selectedGenerators.includes('useAsyncData')) {
+        addImportsDir(path.join(composablesOutputDir, 'connectors'));
       }
     }
   },

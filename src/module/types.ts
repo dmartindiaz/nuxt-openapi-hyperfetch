@@ -28,4 +28,12 @@ export interface ModuleOptions extends GeneratorConfig {
    * @default true
    */
   enableAutoImport?: boolean;
+
+  /**
+   * Generate headless UI connector composables on top of useAsyncData.
+   * Connectors provide ready-made logic for tables, pagination, forms and delete actions.
+   * Requires useAsyncData to also be in generators.
+   * @default false
+   */
+  createUseAsyncDataConnectors?: boolean;
 }

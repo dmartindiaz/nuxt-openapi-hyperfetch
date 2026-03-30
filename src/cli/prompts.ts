@@ -96,7 +96,7 @@ export async function promptComposablesSelection(): Promise<ComposablesSelection
   });
   checkCancellation(result);
 
-  return { composables: result as ComposableType[] };
+  return { composables: result as ('useFetch' | 'useAsyncData' | 'nuxtServer')[] };
 }
 
 /**
@@ -140,4 +140,17 @@ export async function promptBffConfig(): Promise<BffConfig> {
   checkCancellation(result);
 
   return { enableBff: result as boolean };
+}
+
+/**
+ * Ask whether to generate headless UI connectors on top of useAsyncData.
+ * Only called when useAsyncData was selected and no config value is present.
+ */
+export async function promptConnectors(): Promise<boolean> {
+  const result = await p.confirm({
+    message: CHOICES.connectorsPrompt,
+    initialValue: false,
+  });
+  checkCancellation(result);
+  return result as boolean;
 }
