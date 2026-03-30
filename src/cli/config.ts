@@ -30,7 +30,7 @@ export interface GeneratorConfig {
   /** Watch mode - regenerate on file changes */
   watch?: boolean;
   /** Generator types to use */
-  generators?: ('useFetch' | 'useAsyncData' | 'nuxtServer')[];
+  generators?: ('useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors')[];
   /** Server route path (for nuxtServer mode) */
   serverRoutePath?: string;
   /** Enable BFF pattern (for nuxtServer mode) */
@@ -44,6 +44,13 @@ export interface GeneratorConfig {
    * When set, the CLI will not ask which engine to use.
    */
   generator?: ConfigGenerator;
+  /**
+   * Generate headless UI connector composables on top of useAsyncData.
+   * Connectors provide ready-made logic for tables, pagination, forms and delete actions.
+   * Requires useAsyncData to also be generated.
+   * @default false
+   */
+  createUseAsyncDataConnectors?: boolean;
 }
 
 /**
@@ -129,12 +136,12 @@ export function parseTags(tagsString?: string): string[] | undefined {
  */
 export function parseGenerators(
   generatorsString?: string
-): ('useFetch' | 'useAsyncData' | 'nuxtServer')[] | undefined {
+): ('useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors')[] | undefined {
   if (!generatorsString) {
     return undefined;
   }
   const parts = generatorsString.split(',').map((g) => g.trim());
-  return parts.filter((g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' =>
-    ['useFetch', 'useAsyncData', 'nuxtServer'].includes(g)
+  return parts.filter((g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors' =>
+    ['useFetch', 'useAsyncData', 'nuxtServer', 'connectors'].includes(g)
   );
 }

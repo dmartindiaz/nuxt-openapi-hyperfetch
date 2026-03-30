@@ -13,6 +13,7 @@ import {
   promptServerRoutePath,
   promptBffConfig,
   promptGeneratorBackend,
+  promptConnectors,
 } from './cli/prompts.js';
 import { MESSAGES } from './cli/messages.js';
 import { displayLogo } from './cli/logo.js';
@@ -37,6 +38,7 @@ interface GenerateOptions {
   serverRoutePath?: string;
   enableBff?: boolean;
   backend?: string;
+  connectors?: boolean;
 }
 
 program
@@ -53,6 +55,7 @@ program
   .option('-v, --verbose', 'Enable verbose logging', false)
   .option('--watch', 'Watch mode - regenerate on file changes', false)
   .option('--generators <types>', 'Generators to use: useFetch,useAsyncData,nuxtServer')
+  .option('--connectors', 'Generate headless UI connectors on top of useAsyncData', false)
   .option('--server-route-path <path>', 'Server route path (for nuxtServer mode)')
   .option('--enable-bff', 'Enable BFF pattern (for nuxtServer mode)', false)
   .option('--backend <type>', 'Generator backend: official (Java) or heyapi (Node.js)')
@@ -84,6 +87,7 @@ program
           options.backend === 'official' || options.backend === 'heyapi'
             ? options.backend
             : undefined,
+        createUseAsyncDataConnectors: options.connectors,
       });
 
       if (config.verbose) {
@@ -125,7 +129,10 @@ program
       let composables: ('useFetch' | 'useAsyncData' | 'nuxtServer')[];
 
       if (config.generators) {
-        composables = config.generators;
+        // filter out 'connectors' — handled separately below
+        composables = config.generators.filter(
+          (g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' => g !== 'connectors'
+        );
         if (config.verbose) {
           console.log(`Using generators from config: ${composables.join(', ')}`);
         }
@@ -157,7 +164,17 @@ program
         outputPath = config.output ?? './swagger';
       }
 
-      // 3. Ask for server route path if nuxtServer is selected
+      // 3. Ask whether to generate headless connectors (only if useAsyncData selected)
+      let generateConnectorsFlag = false;
+      if (composables.includes('useAsyncData')) {
+        if (config.createUseAsyncDataConnectors !== undefined) {
+          generateConnectorsFlag = config.createUseAsyncDataConnectors;
+        } else {
+          generateConnectorsFlag = await promptConnectors();
+        }
+      }
+
+      // 4. Ask for server route path if nuxtServer is selected
       let serverRoutePath = config.serverRoutePath || '';
       let enableBff = config.enableBff || false;
 
@@ -234,6 +251,28 @@ program
         }
       }
 
+      // Generate headless connectors if requested (requires useAsyncData)
+      if (generateConnectorsFlag) {
+        const spinner = p.spinner();
+        spinner.start('Generating headless UI connectors...');
+        try {
+          if (!config.dryRun) {
+            await generateConnectors({
+              inputSpec: inputPath,
+              outputDir: `${composablesOutputDir}/connectors`,
+              composablesRelDir: '../use-async-data',
+              runtimeRelDir: '../../runtime',
+            });
+            spinner.stop('✓ Generated headless UI connectors');
+          } else {
+            spinner.stop('Would generate headless UI connectors (dry-run)');
+          }
+        } catch (error) {
+          spinner.stop('✗ Failed to generate connectors');
+          throw error;
+        }
+      }
+
       if (config.dryRun) {
         p.outro('🔍 Dry run complete - no files were modified');
       } else {
@@ -262,42 +301,5 @@ program
       process.exit(1);
     }
   });
-
-program
-  .command('connectors')
-  .description('Generate headless connector composables from an OpenAPI spec')
-  .requiredOption('-i, --input <path>', 'Path to OpenAPI YAML or JSON spec')
-  .requiredOption('-o, --output <path>', 'Output directory for connector composables')
-  .option(
-    '--composables-dir <relPath>',
-    'Relative path from output dir to useAsyncData composables (default: ../use-async-data)'
-  )
-  .option(
-    '--runtime-dir <relPath>',
-    'Relative path from output dir where runtime helpers are copied (default: ../runtime)'
-  )
-  .action(
-    async (options: {
-      input: string;
-      output: string;
-      composablesDir?: string;
-      runtimeDir?: string;
-    }) => {
-      try {
-        displayLogo();
-        p.intro('Generating connector composables…');
-        await generateConnectors({
-          inputSpec: options.input,
-          outputDir: options.output,
-          composablesRelDir: options.composablesDir,
-          runtimeRelDir: options.runtimeDir,
-        });
-        p.outro('Done!');
-      } catch (error) {
-        p.log.error(`Error: ${String(error)}`);
-        process.exit(1);
-      }
-    }
-  );
 
 program.parse();

@@ -47,4 +47,4 @@ export interface BffConfig {
 /**
  * Valid composable types
  */
-export type ComposableType = 'useFetch' | 'useAsyncData' | 'nuxtServer';
+export type ComposableType = 'useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors';
