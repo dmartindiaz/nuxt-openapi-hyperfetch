@@ -136,16 +136,17 @@ function generateFunctionBody(
 ): string {
   const hasParams = !!method.requestType;
   const paramsArg = hasParams ? `params: ${method.requestType}` : '';
+  const responseType = method.responseType !== 'void' ? method.responseType : 'void';
 
   // Determine the options type based on isRaw
   const optionsType = isRaw
-    ? `ApiAsyncDataRawOptions<${method.responseType}>`
-    : `ApiAsyncDataOptions<${method.responseType}>`;
-  const optionsArg = `options?: ${optionsType}`;
+    ? `ApiAsyncDataRawOptions<${responseType}, DataT, PickT>`
+    : `ApiAsyncDataOptions<${responseType}, DataT, PickT>`;
+  const optionsDefaultType = isRaw
+    ? `ApiAsyncDataRawOptions<${responseType}, DataT, PickT>`
+    : `ApiAsyncDataOptions<${responseType}, DataT, PickT>`;
+  const optionsArg = `options?: Options`;
   const args = hasParams ? `${paramsArg}, ${optionsArg}` : optionsArg;
-
-  // Determine the response type generic
-  const responseTypeGeneric = method.responseType !== 'void' ? `<${method.responseType}>` : '';
 
   // Generate unique key for useAsyncData
   const composableName =
@@ -162,6 +163,12 @@ function generateFunctionBody(
 
   // Choose the correct wrapper function
   const wrapperFunction = isRaw ? 'useApiAsyncDataRaw' : 'useApiAsyncData';
+  const wrapperCall = isRaw
+    ? `${wrapperFunction}<${responseType}, DataT, PickT, Options>`
+    : `${wrapperFunction}<${responseType}, Options>`;
+  const returnType = isRaw
+    ? `ReturnType<typeof ${wrapperFunction}<${responseType}, DataT, PickT, Options>>`
+    : `ReturnType<typeof ${wrapperFunction}<${responseType}, Options>>`;
 
   const pInit = hasParams ? `\n  const p = shallowRef(params)` : '';
 
@@ -169,11 +176,19 @@ function generateFunctionBody(
     ? `  const _hasKey = typeof args[0] === 'string'\n  const params = _hasKey ? args[1] : args[0]\n  const options = _hasKey ? { cacheKey: args[0], ...args[2] } : args[1]`
     : `  const _hasKey = typeof args[0] === 'string'\n  const options = _hasKey ? { cacheKey: args[0], ...args[1] } : args[0]`;
 
-  return `${description}export function ${composableName}(key: string, ${args})
-export function ${composableName}(${args})
+  return `${description}export function ${composableName}<
+  DataT = ${responseType},
+  PickT extends ReadonlyArray<string> | undefined = undefined,
+  Options extends ${optionsType} = ${optionsDefaultType}
+>(key: string, ${args}): ${returnType}
+export function ${composableName}<
+  DataT = ${responseType},
+  PickT extends ReadonlyArray<string> | undefined = undefined,
+  Options extends ${optionsType} = ${optionsDefaultType}
+>(${args}): ${returnType}
 export function ${composableName}(...args: any[]) {
 ${argsExtraction}${pInit}
-  return ${wrapperFunction}${responseTypeGeneric}(${key}, ${url}, ${fetchOptions})
+  return ${wrapperCall}(${key}, ${url}, ${fetchOptions})
 }`;
 }
 

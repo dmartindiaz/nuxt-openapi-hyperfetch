@@ -37,14 +37,39 @@ type MaybeTransformed<T, Options> = Options extends { transform: (...args: any) 
     ? any // With nested paths, type inference is complex, so we use any
     : T;
 
+type PickInput = ReadonlyArray<string> | undefined;
+
+type HasNestedPath<K extends ReadonlyArray<string>> =
+  Extract<K[number], `${string}.${string}`> extends never ? false : true;
+
+type PickedData<T, K extends PickInput> = K extends ReadonlyArray<string>
+  ? HasNestedPath<K> extends true
+    ? any
+    : Pick<T, Extract<K[number], keyof T>>
+  : T;
+
+type InferPick<Options> = Options extends { pick: infer K extends ReadonlyArray<string> }
+  ? K
+  : undefined;
+
+type InferData<T, Options> = Options extends { transform: (...args: any) => infer R }
+  ? R
+  : PickedData<T, InferPick<Options>>;
+
 /**
  * Options for useAsyncData API requests with lifecycle callbacks.
  * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
  * Native options like baseURL, method, body, headers, query, lazy, server, immediate, dedupe, etc. are all available.
  * watch: boolean (true = auto-watch reactive params, false = disable auto-refresh)
  */
-export type ApiAsyncDataOptions<T> = BaseApiRequestOptions<T> &
-  Omit<UseFetchOptions<T>, 'transform' | 'pick' | 'watch'> & {
+export type ApiAsyncDataOptions<
+  T,
+  DataT = T,
+  PickT extends PickInput = undefined,
+> = Omit<BaseApiRequestOptions<T>, 'transform' | 'pick'> &
+  Omit<UseFetchOptions<T, DataT>, 'transform' | 'pick' | 'watch'> & {
+    pick?: PickT;
+    transform?: (data: PickedData<T, PickT>) => DataT;
     /**
      * Enable automatic refresh when reactive params/url change (default: true).
      * Set to false to disable auto-refresh entirely.
@@ -61,10 +86,13 @@ export type ApiAsyncDataOptions<T> = BaseApiRequestOptions<T> &
  * - Global headers from useApiHeaders or $getApiHeaders
  * - Watch pattern for reactive parameters
  */
-export function useApiAsyncData<T>(
+export function useApiAsyncData<
+  T,
+  Options extends ApiAsyncDataOptions<T, any, any> = ApiAsyncDataOptions<T>,
+>(
   key: string,
   url: string | (() => string),
-  options?: ApiAsyncDataOptions<T>
+  options?: Options
 ) {
   const {
     method = 'GET',
@@ -295,7 +323,7 @@ export function useApiAsyncData<T>(
   };
 
   // Use Nuxt's useAsyncData with a computed key for proper cache isolation per params
-  const result = useAsyncData<MaybeTransformed<T, ApiAsyncDataOptions<T>>>(computedKey, fetchFn, {
+  const result = useAsyncData<InferData<T, Options>>(computedKey, fetchFn, {
     immediate,
     lazy,
     server,

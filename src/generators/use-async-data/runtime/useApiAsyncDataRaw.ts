@@ -48,18 +48,35 @@ type MaybeTransformedRaw<T, Options> = Options extends { transform: (...args: an
     ? RawResponse<any> // With nested paths, type inference is complex
     : RawResponse<T>;
 
+type PickInput = ReadonlyArray<string> | undefined;
+
+type HasNestedPath<K extends ReadonlyArray<string>> =
+  Extract<K[number], `${string}.${string}`> extends never ? false : true;
+
+type PickedData<T, K extends PickInput> = K extends ReadonlyArray<string>
+  ? HasNestedPath<K> extends true
+    ? any
+    : Pick<T, Extract<K[number], keyof T>>
+  : T;
+
 /**
  * Options for useAsyncData Raw API requests.
  * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
  * onSuccess receives data AND the full response (headers, status, statusText).
  */
-export type ApiAsyncDataRawOptions<T> = Omit<BaseApiRequestOptions<T>, 'onSuccess'> &
-  Omit<UseFetchOptions<T>, 'transform' | 'pick' | 'onSuccess'> & {
+export type ApiAsyncDataRawOptions<
+  T,
+  DataT = T,
+  PickT extends PickInput = undefined,
+> = Omit<BaseApiRequestOptions<T>, 'onSuccess' | 'transform' | 'pick'> &
+  Omit<UseFetchOptions<T, DataT>, 'transform' | 'pick' | 'onSuccess'> & {
+    pick?: PickT;
+    transform?: (data: PickedData<T, PickT>) => DataT;
     /**
      * Called when the request succeeds — receives both data and the full response object.
      */
     onSuccess?: (
-      data: T,
+      data: DataT,
       response: { headers: Headers; status: number; statusText: string; url: string }
     ) => void | Promise<void>;
   };
@@ -76,10 +93,15 @@ export type ApiAsyncDataRawOptions<T> = Omit<BaseApiRequestOptions<T>, 'onSucces
  * - Global headers from useApiHeaders or $getApiHeaders
  * - Watch pattern for reactive parameters
  */
-export function useApiAsyncDataRaw<T>(
+export function useApiAsyncDataRaw<
+  T,
+  DataT = T,
+  PickT extends PickInput = undefined,
+  Options extends ApiAsyncDataRawOptions<T, DataT, PickT> = ApiAsyncDataRawOptions<T, DataT, PickT>,
+>(
   key: string,
   url: string | (() => string),
-  options?: ApiAsyncDataRawOptions<T>
+  options?: Options
 ) {
   const {
     method = 'GET',
@@ -151,7 +173,7 @@ export function useApiAsyncDataRaw<T>(
   };
 
   // Fetch function for useAsyncData
-  const fetchFn = async (): Promise<RawResponse<T>> => {
+  const fetchFn = async (): Promise<RawResponse<DataT>> => {
     // Get URL value for merging callbacks
     const finalUrl = typeof url === 'function' ? url() : url;
 
@@ -253,7 +275,7 @@ export function useApiAsyncDataRaw<T>(
       }
 
       // Construct the raw response object
-      const rawResponse: RawResponse<T> = {
+      const rawResponse: RawResponse<DataT> = {
         data,
         headers: response.headers,
         status: response.status,
@@ -290,7 +312,7 @@ export function useApiAsyncDataRaw<T>(
   };
 
   // Use Nuxt's useAsyncData with a computed key for proper cache isolation per params
-  const result = useAsyncData<MaybeTransformedRaw<T, ApiAsyncDataRawOptions<T>>>(computedKey, fetchFn, {
+  const result = useAsyncData<MaybeTransformedRaw<T, Options>>(computedKey, fetchFn, {
     immediate,
     lazy,
     server,

@@ -116,11 +116,10 @@ function generateImports(method: MethodInfo, apiImportPath: string): string {
 function generateFunctionBody(method: MethodInfo, options?: GenerateOptions): string {
   const hasParams = !!method.requestType;
   const paramsArg = hasParams ? `params: ${method.requestType}` : '';
-  const optionsType = `ApiRequestOptions<${method.responseType}>`;
-  const optionsArg = `options?: ${optionsType}`;
+  const responseType = method.responseType !== 'void' ? method.responseType : 'void';
+  const optionsType = `ApiRequestOptions<${responseType}, DataT, PickT>`;
+  const optionsArg = `options?: Options`;
   const args = hasParams ? `${paramsArg}, ${optionsArg}` : optionsArg;
-
-  const responseTypeGeneric = method.responseType !== 'void' ? `<${method.responseType}>` : '';
 
   const url = generateUrl(method);
   const fetchOptions = generateFetchOptions(method, options);
@@ -129,8 +128,12 @@ function generateFunctionBody(method: MethodInfo, options?: GenerateOptions): st
 
   const pInit = hasParams ? `\n  const p = shallowRef(params)` : '';
 
-  return `${description}export const ${method.composableName} = (${args}) => {${pInit}
-  return useApiRequest${responseTypeGeneric}(${url}, ${fetchOptions})
+  return `${description}export const ${method.composableName} = <
+  DataT = ${responseType},
+  PickT extends ReadonlyArray<string> | undefined = undefined,
+  Options extends ${optionsType} = ApiRequestOptions<${responseType}, DataT, PickT>
+>(${args}) => {${pInit}
+  return useApiRequest<${responseType}, Options>(${url}, ${fetchOptions})
 }`;
 }
 

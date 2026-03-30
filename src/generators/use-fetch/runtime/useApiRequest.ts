@@ -37,12 +37,39 @@ type MaybeTransformed<T, Options> = Options extends { transform: (...args: any) 
     ? any // With nested paths, type inference is complex, so we use any
     : T;
 
+type PickInput = ReadonlyArray<string> | undefined;
+
+type HasNestedPath<K extends ReadonlyArray<string>> =
+  Extract<K[number], `${string}.${string}`> extends never ? false : true;
+
+type PickedData<T, K extends PickInput> = K extends ReadonlyArray<string>
+  ? HasNestedPath<K> extends true
+    ? any
+    : Pick<T, Extract<K[number], keyof T>>
+  : T;
+
+type InferPick<Options> = Options extends { pick: infer K extends ReadonlyArray<string> }
+  ? K
+  : undefined;
+
+type InferData<T, Options> = Options extends { transform: (...args: any) => infer R }
+  ? R
+  : PickedData<T, InferPick<Options>>;
+
 /**
  * Options for useFetch API requests with lifecycle callbacks.
  * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
  * Native options like baseURL, method, body, headers, query, lazy, server, immediate, etc. are all available.
  */
-export type ApiRequestOptions<T = any> = BaseApiRequestOptions<T> & Omit<UseFetchOptions<T>, 'transform' | 'pick'>;
+export type ApiRequestOptions<
+  T = any,
+  DataT = T,
+  PickT extends PickInput = undefined,
+> = Omit<BaseApiRequestOptions<T>, 'transform' | 'pick'> &
+  Omit<UseFetchOptions<T, DataT>, 'transform' | 'pick'> & {
+    pick?: PickT;
+    transform?: (data: PickedData<T, PickT>) => DataT;
+  };
 
 /**
  * Enhanced useFetch wrapper with lifecycle callbacks and request interception
@@ -80,7 +107,10 @@ export type ApiRequestOptions<T = any> = BaseApiRequestOptions<T> & Omit<UseFetc
  * });
  * ```
  */
-export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = ApiRequestOptions<T>>(
+export function useApiRequest<
+  T = any,
+  Options extends ApiRequestOptions<T, any, any> = ApiRequestOptions<T>,
+>(
   url: string | (() => string),
   options?: Options
 ) {
@@ -224,10 +254,10 @@ export function useApiRequest<T = any, Options extends ApiRequestOptions<T> = Ap
   }
 
   // Make the actual request using Nuxt's useFetch
-  const result = useFetch<T>(url, modifiedOptions);
+  const result = useFetch<T>(url, modifiedOptions as UseFetchOptions<T, InferData<T, Options>>);
 
   // Create a ref for transformed data
-  type TransformedType = MaybeTransformed<T, Options>;
+  type TransformedType = InferData<T, Options>;
   const transformedData = ref<TransformedType | null>(null);
 
   // Track if callbacks have been executed to avoid duplicates
