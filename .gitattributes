@@ -1,0 +1,17 @@
+# Force LF line endings for all text files in this repo.
+# Prevents the CRLF ↔ LF conflict between Windows Git (autocrlf=true)
+# and Prettier (endOfLine: lf).
+* text=auto eol=lf
+
+# Explicitly binary — never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.zip binary
+*.gz binary

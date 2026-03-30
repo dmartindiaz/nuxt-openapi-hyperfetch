@@ -3,6 +3,7 @@
 
 # --- Keep: Git essentials ---
 !.gitignore
+!.gitattributes
 !package.json
 !package-lock.json
 
