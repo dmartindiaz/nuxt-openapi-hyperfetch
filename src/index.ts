@@ -112,7 +112,7 @@ program
           : config.generator === 'heyapi'
             ? 'heyapi'
             : config.backend;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const backend = await promptGeneratorBackend(resolvedBackend);
 
       // Check Java availability when official backend is selected
@@ -207,7 +207,6 @@ program
         const spinner = p.spinner();
         spinner.start(`Generating ${composable}...`);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const generateOptions = { baseUrl: config.baseUrl, backend };
 
         try {
@@ -238,7 +237,6 @@ program
               break;
             case 'nuxtServer':
               if (!config.dryRun) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 await generateNuxtServerRoutes(outputPath, serverRoutePath, { enableBff, backend });
                 spinner.stop(`✓ Generated Nuxt server routes`);
               } else {

@@ -41,11 +41,21 @@ function toFileName(composableName: string): string {
 /**
  * Build all `import` lines for a resource connector.
  */
-function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelDir: string, runtimeRelDir: string): string {
+function buildImports(
+  resource: ResourceInfo,
+  composablesRelDir: string,
+  sdkRelDir: string,
+  runtimeRelDir: string
+): string {
   const lines: string[] = [];
 
   // vue — shallowRef needed when form, delete, or detail endpoints exist
-  const needsShallowRef = !!(resource.createEndpoint || resource.updateEndpoint || resource.deleteEndpoint || resource.detailEndpoint);
+  const needsShallowRef = !!(
+    resource.createEndpoint ||
+    resource.updateEndpoint ||
+    resource.deleteEndpoint ||
+    resource.detailEndpoint
+  );
   const needsComputed = !!resource.detailEndpoint;
   if (needsShallowRef) {
     const vueImports = needsComputed ? `shallowRef, computed` : `shallowRef`;
@@ -68,7 +78,9 @@ function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelD
   if (resource.deleteEndpoint) {
     connectorTypeImports.push('DeleteConnectorReturn');
   }
-  lines.push(`import type { ${connectorTypeImports.join(', ')} } from '${runtimeRelDir}/connector-types';`);
+  lines.push(
+    `import type { ${connectorTypeImports.join(', ')} } from '${runtimeRelDir}/connector-types';`
+  );
   lines.push('');
 
   // SDK request/response types (for the params overload signature)
@@ -222,11 +234,15 @@ function buildReturnType(resource: ResourceInfo): string {
     fields.push(`  detail: DetailConnectorReturn<${pascal}>;`);
   }
   if (resource.createEndpoint) {
-    const inputType = resource.zodSchemas.create ? `${pascal}CreateInput` : `Record<string, unknown>`;
+    const inputType = resource.zodSchemas.create
+      ? `${pascal}CreateInput`
+      : `Record<string, unknown>`;
     fields.push(`  createForm: FormConnectorReturn<${inputType}>;`);
   }
   if (resource.updateEndpoint) {
-    const inputType = resource.zodSchemas.update ? `${pascal}UpdateInput` : `Record<string, unknown>`;
+    const inputType = resource.zodSchemas.update
+      ? `${pascal}UpdateInput`
+      : `Record<string, unknown>`;
     fields.push(`  updateForm: FormConnectorReturn<${inputType}>;`);
   }
   if (resource.deleteEndpoint) {
@@ -276,7 +292,11 @@ function buildFunctionBody(resource: ResourceInfo): string {
   if (resource.updateEndpoint && resource.zodSchemas.update) {
     optionKeys.push('updateSchema');
   }
-  const hasMutations = !!(resource.createEndpoint || resource.updateEndpoint || resource.deleteEndpoint);
+  const hasMutations = !!(
+    resource.createEndpoint ||
+    resource.updateEndpoint ||
+    resource.deleteEndpoint
+  );
   if (hasMutations) {
     optionKeys.push('onRequest', 'onSuccess', 'onError', 'onFinish');
   }
@@ -316,24 +336,34 @@ function buildFunctionBody(resource: ResourceInfo): string {
     const fn = toAsyncDataName(resource.detailEndpoint.operationId);
     const pathParam = resource.detailEndpoint.pathParams[0] ?? 'id';
     subConnectors.push(...buildPathParamComposableLines('_detail', fn, pathParam));
-    subConnectors.push(`  const detail = useDetailConnector((id: any) => { _detailRef.value = id; return _detailComposable; }) as unknown as DetailConnectorReturn<${pascal}>;`);
+    subConnectors.push(
+      `  const detail = useDetailConnector((id: any) => { _detailRef.value = id; return _detailComposable; }) as unknown as DetailConnectorReturn<${pascal}>;`
+    );
   }
 
   if (resource.createEndpoint) {
     const fn = toAsyncDataName(resource.createEndpoint.operationId);
-    const inputType = resource.zodSchemas.create ? `${pascal}CreateInput` : `Record<string, unknown>`;
+    const inputType = resource.zodSchemas.create
+      ? `${pascal}CreateInput`
+      : `Record<string, unknown>`;
     const schemaArg = resource.zodSchemas.create
       ? `{ schema: ${pascal}CreateSchema, schemaOverride: createSchema }`
       : '{}';
     subConnectors.push(`  const _createRef = shallowRef({});`);
-    subConnectors.push(`  const _createComposable = ${fn}(_createRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
-    subConnectors.push(`  const createForm = useFormConnector((p: any) => { _createRef.value = p; return _createComposable; }, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
+    subConnectors.push(
+      `  const _createComposable = ${fn}(_createRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`
+    );
+    subConnectors.push(
+      `  const createForm = useFormConnector((p: any) => { _createRef.value = p; return _createComposable; }, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`
+    );
   }
 
   if (resource.updateEndpoint) {
     const fn = toAsyncDataName(resource.updateEndpoint.operationId);
     const hasDetail = !!resource.detailEndpoint;
-    const inputType = resource.zodSchemas.update ? `${pascal}UpdateInput` : `Record<string, unknown>`;
+    const inputType = resource.zodSchemas.update
+      ? `${pascal}UpdateInput`
+      : `Record<string, unknown>`;
 
     let schemaArg = '{}';
     if (resource.zodSchemas.update && hasDetail) {
@@ -344,8 +374,12 @@ function buildFunctionBody(resource: ResourceInfo): string {
       schemaArg = `{ loadWith: detail }`;
     }
     subConnectors.push(`  const _updateRef = shallowRef({});`);
-    subConnectors.push(`  const _updateComposable = ${fn}(_updateRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
-    subConnectors.push(`  const updateForm = useFormConnector((p: any) => { _updateRef.value = p; return _updateComposable; }, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
+    subConnectors.push(
+      `  const _updateComposable = ${fn}(_updateRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`
+    );
+    subConnectors.push(
+      `  const updateForm = useFormConnector((p: any) => { _updateRef.value = p; return _updateComposable; }, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`
+    );
   }
 
   if (resource.deleteEndpoint) {
@@ -353,12 +387,20 @@ function buildFunctionBody(resource: ResourceInfo): string {
     const pathParam = resource.deleteEndpoint.pathParams[0];
     if (pathParam) {
       subConnectors.push(...buildPathParamComposableLines('_delete', fn, pathParam));
-      subConnectors.push(`  const _deleteComposableWithHooks = ${fn}(computed(() => ({ ${pathParam}: _deleteRef.value })) as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
-      subConnectors.push(`  const deleteAction = useDeleteConnector((item: any) => { _deleteRef.value = item?.${pathParam} ?? item?.id ?? item; return _deleteComposableWithHooks; }) as unknown as DeleteConnectorReturn<${pascal}>;`);
+      subConnectors.push(
+        `  const _deleteComposableWithHooks = ${fn}(computed(() => ({ ${pathParam}: _deleteRef.value })) as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`
+      );
+      subConnectors.push(
+        `  const deleteAction = useDeleteConnector((item: any) => { _deleteRef.value = item?.${pathParam} ?? item?.id ?? item; return _deleteComposableWithHooks; }) as unknown as DeleteConnectorReturn<${pascal}>;`
+      );
     } else {
       subConnectors.push(`  const _deleteRef = shallowRef({});`);
-      subConnectors.push(`  const _deleteComposable = ${fn}(_deleteRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
-      subConnectors.push(`  const deleteAction = useDeleteConnector((p: any) => { _deleteRef.value = p; return _deleteComposable; }) as unknown as DeleteConnectorReturn<${pascal}>;`);
+      subConnectors.push(
+        `  const _deleteComposable = ${fn}(_deleteRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`
+      );
+      subConnectors.push(
+        `  const deleteAction = useDeleteConnector((p: any) => { _deleteRef.value = p; return _deleteComposable; }) as unknown as DeleteConnectorReturn<${pascal}>;`
+      );
     }
   }
 

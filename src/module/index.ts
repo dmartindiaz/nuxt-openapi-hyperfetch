@@ -103,10 +103,7 @@ export default defineNuxtModule<ModuleOptions>({
       }
 
       // 3. Generate headless connectors if requested (requires useAsyncData)
-      if (
-        options.createUseAsyncDataConnectors &&
-        selectedGenerators.includes('useAsyncData')
-      ) {
+      if (options.createUseAsyncDataConnectors && selectedGenerators.includes('useAsyncData')) {
         const connectorsOutputDir = path.join(composablesOutputDir, 'connectors');
         await generateConnectors(
           {

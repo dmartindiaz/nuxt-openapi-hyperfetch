@@ -199,7 +199,9 @@ function buildOptionsInterface(resource: ResourceInfo): string {
     fields.push(`  onSuccess?: (data: any, ctx: { operation: string }) => void;`);
     fields.push(`  onError?: (err: any, ctx: { operation: string }) => void;`);
     fields.push(`  onFinish?: (ctx: any) => void;`);
-    fields.push(`  skipGlobalCallbacks?: boolean | Array<'onRequest' | 'onSuccess' | 'onError' | 'onFinish'>;`);
+    fields.push(
+      `  skipGlobalCallbacks?: boolean | Array<'onRequest' | 'onSuccess' | 'onError' | 'onFinish'>;`
+    );
   }
   fields.push(`  baseURL?: string;`);
 
@@ -330,7 +332,17 @@ function buildFunctionBody(resource: ResourceInfo): string {
     const pathParam = resource.detailEndpoint.pathParams[0] ?? 'id';
     const urlFn = buildUrlFn(resource.detailEndpoint.path, pathParam);
     const fieldsArg = hasFields ? `fields: ${fieldsVar}` : '';
-    const args = ['baseURL', 'onRequest', 'onSuccess', 'onError', 'onFinish', 'skipGlobalCallbacks', fieldsArg].filter(Boolean).join(', ');
+    const args = [
+      'baseURL',
+      'onRequest',
+      'onSuccess',
+      'onError',
+      'onFinish',
+      'skipGlobalCallbacks',
+      fieldsArg,
+    ]
+      .filter(Boolean)
+      .join(', ');
     lines.push(
       `  const get = useGetConnector(${urlFn}, { ${args} }) as unknown as GetConnectorReturn<${pascal}>;`
     );

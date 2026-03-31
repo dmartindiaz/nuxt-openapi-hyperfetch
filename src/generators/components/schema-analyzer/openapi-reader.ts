@@ -61,7 +61,7 @@ function resolveRefs(node: unknown, root: OpenApiSpec, visited = new Set<string>
       ref.startsWith('#/components/schemas/')
     ) {
       const refName = ref.split('/').pop()!;
-      return { ...(resolvedFull as object), 'x-ref-name': refName };
+      return { ...resolvedFull, 'x-ref-name': refName };
     }
 
     return resolvedFull;

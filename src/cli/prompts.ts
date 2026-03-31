@@ -5,13 +5,7 @@
 import * as p from '@clack/prompts';
 import { checkCancellation, validateNonEmpty } from './utils.js';
 import { MESSAGES, CHOICES, DEFAULTS } from './messages.js';
-import type {
-  InitialInputs,
-  ComposablesSelection,
-  BffConfig,
-  ComposableType,
-  GeneratorBackend,
-} from './types.js';
+import type { InitialInputs, ComposablesSelection, BffConfig, GeneratorBackend } from './types.js';
 
 /**
  * Ask which OpenAPI generator backend to use
