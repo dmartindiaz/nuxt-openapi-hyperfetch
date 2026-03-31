@@ -126,7 +126,7 @@ function generateFunctionBody(method: MethodInfo, options?: GenerateOptions): st
 
   const description = method.description ? `/**\n * ${method.description}\n */\n` : '';
 
-  const pInit = hasParams ? `\n  const p = shallowRef(params)` : '';
+  const pInit = hasParams ? `\n  const p = isRef(params) ? params : shallowRef(params)` : '';
 
   return `${description}export const ${method.composableName} = <
   DataT = ${responseType},

@@ -63,8 +63,9 @@ export function useDeleteConnector(composableFn, options = {}) {
       // Pass the full target item; the generated composable extracts the id it needs
       const composable = composableFn(target.value);
 
-      if (composable.execute) {
-        await composable.execute();
+      // refresh() bypasses Nuxt SSR payload cache, forcing a real network request
+      if (composable.refresh) {
+        await composable.refresh();
       }
 
       const err = composable.error?.value;
@@ -78,6 +79,7 @@ export function useDeleteConnector(composableFn, options = {}) {
 
       onSuccess.value?.(deletedItem);
     } catch (err) {
+      console.error('[useDeleteConnector] confirm error:', err);
       error.value = err;
       onError.value?.(err);
     } finally {

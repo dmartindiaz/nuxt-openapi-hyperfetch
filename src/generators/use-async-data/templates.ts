@@ -15,7 +15,6 @@ function generateFileHeader(): string {
  */
 
 /* eslint-disable */
-// @ts-nocheck
 `;
 }
 
@@ -123,6 +122,18 @@ function generateImports(method: MethodInfo, apiImportPath: string, isRaw: boole
     imports += `import { useApiAsyncData, type ApiAsyncDataOptions } from '../runtime/useApiAsyncData';`;
   }
 
+  // Vue imports needed by the generated function body
+  const vueImports: string[] = ['shallowRef'];
+  if (method.requestType) {
+    vueImports.push('isRef');
+  }
+  if (method.hasBody || method.hasQueryParams || method.pathParams.length > 0) {
+    vueImports.push('computed');
+  }
+  const vueTypeImports = method.requestType ? ['Ref', 'ComputedRef'] : [];
+  const allVueImports = [...vueImports, ...vueTypeImports.map((t) => `type ${t}`)].join(', ');
+  imports += `\nimport { ${allVueImports} } from 'vue';`;
+
   return imports;
 }
 
@@ -170,26 +181,23 @@ function generateFunctionBody(
     ? `ReturnType<typeof ${wrapperFunction}<${responseType}, DataT, PickT, Options>>`
     : `ReturnType<typeof ${wrapperFunction}<${responseType}, Options>>`;
 
-  const pInit = hasParams ? `\n  const p = shallowRef(params)` : '';
+  const pInit = hasParams ? `\n  const p = isRef(params) ? params : shallowRef(params)` : '';
 
   const argsExtraction = hasParams
     ? `  const _hasKey = typeof args[0] === 'string'\n  const params = _hasKey ? args[1] : args[0]\n  const options = _hasKey ? { cacheKey: args[0], ...args[2] } : args[1]`
     : `  const _hasKey = typeof args[0] === 'string'\n  const options = _hasKey ? { cacheKey: args[0], ...args[1] } : args[0]`;
 
-  return `${description}export function ${composableName}<
-  DataT = ${responseType},
-  PickT extends ReadonlyArray<string> | undefined = undefined,
-  Options extends ${optionsType} = ${optionsDefaultType}
->(key: string, ${args}): ${returnType}
-export function ${composableName}<
-  DataT = ${responseType},
-  PickT extends ReadonlyArray<string> | undefined = undefined,
-  Options extends ${optionsType} = ${optionsDefaultType}
->(${args}): ${returnType}
-export function ${composableName}(...args: any[]) {
-${argsExtraction}${pInit}
-  return ${wrapperCall}(${key}, ${url}, ${fetchOptions})
-}`;
+  const genericTypeParams = `<\n  DataT = ${responseType},\n  PickT extends ReadonlyArray<string> | undefined = undefined,\n  Options extends ${optionsType} = ${optionsDefaultType}\n>`;
+
+  const refParamsStr = hasParams
+    ? `params: Ref<${method.requestType}> | ComputedRef<${method.requestType}>, ${optionsArg}`
+    : '';
+
+  const refOverloads = hasParams
+    ? `\nexport function ${composableName}${genericTypeParams}(${refParamsStr}): ${returnType}\nexport function ${composableName}${genericTypeParams}(key: string, ${refParamsStr}): ${returnType}`
+    : '';
+
+  return `${description}export function ${composableName}${genericTypeParams}(${args}): ${returnType}\nexport function ${composableName}${genericTypeParams}(key: string, ${args}): ${returnType}${refOverloads}\nexport function ${composableName}(...args: any[]) {\n${argsExtraction}${pInit}\n  return ${wrapperCall}(${key}, ${url}, ${fetchOptions})\n}`;
 }
 
 /**

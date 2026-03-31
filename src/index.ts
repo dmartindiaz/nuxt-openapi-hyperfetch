@@ -5,7 +5,7 @@ import { generateOpenApiFiles, generateHeyApiFiles, checkJavaInstalled } from '.
 import { generateUseFetchComposables } from './generators/use-fetch/generator.js';
 import { generateUseAsyncDataComposables } from './generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from './generators/nuxt-server/generator.js';
-import { generateConnectors } from './generators/components/connector-generator/generator.js';
+import { generateConnectors } from './generators/connectors/generator.js';
 import {
   promptInitialInputs,
   promptInputPath,
@@ -254,21 +254,6 @@ program
 
       // Generate headless connectors if requested (requires useAsyncData)
       if (generateConnectorsFlag) {
-        // Check zod is available in the user's project before attempting generation
-        try {
-          // Use a variable to prevent TypeScript from resolving the module at compile time
-          const zodId = 'zod';
-          await import(zodId);
-        } catch {
-          p.log.warn(
-            'Skipping connectors: "zod" is not installed in this project.\n' +
-            '  Run: npm install zod'
-          );
-          generateConnectorsFlag = false;
-        }
-      }
-
-      if (generateConnectorsFlag) {
         const spinner = p.spinner();
         spinner.start('Generating headless UI connectors...');
         try {
@@ -276,7 +261,7 @@ program
             await generateConnectors({
               inputSpec: inputPath,
               outputDir: `${composablesOutputDir}/connectors`,
-              composablesRelDir: '../use-async-data',
+              composablesRelDir: '../use-async-data/composables',
               runtimeRelDir: '../../runtime',
             });
             spinner.stop('✓ Generated headless UI connectors');

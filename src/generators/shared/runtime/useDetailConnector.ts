@@ -18,16 +18,11 @@ import { ref, computed } from 'vue';
 export function useDetailConnector(composableFn, options = {}) {
   const { fields = [] } = options;
 
-  // The item ID to load — reactive. null = not loaded yet.
-  const currentId = ref(null);
-
-  // ── Execute the underlying composable lazily (only when currentId changes) ─
-  // We call the composable with lazy: true so it doesn't auto-fetch on mount.
-  // load(id) sets currentId which triggers the watch inside the composable.
-  const composable = composableFn(
-    computed(() => (currentId.value !== null ? { id: currentId.value } : null)),
-    { lazy: true, immediate: false }
-  );
+  // ── Execute the underlying composable lazily (only when load(id) is called) ─
+  // composableFn is a generated wrapper: (id) => { _idRef.value = id; return _composable }
+  // Calling it with null initializes the composable in setup context (safe — p.value is { param: null })
+  // Calling it in load(id) updates the ref before refresh()
+  const composable = composableFn(null);
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
@@ -38,12 +33,12 @@ export function useDetailConnector(composableFn, options = {}) {
   // ── Actions ────────────────────────────────────────────────────────────────
 
   async function load(id) {
-    currentId.value = id;
+    composableFn(id);  // updates the generated _detailIdRef
     await composable.refresh?.();
   }
 
   function clear() {
-    currentId.value = null;
+    composableFn(null);
   }
 
   return {
@@ -59,6 +54,5 @@ export function useDetailConnector(composableFn, options = {}) {
 
     // Expose composable for advanced use (e.g. useFormConnector loadWith)
     _composable: composable,
-    _currentId: currentId,
   };
 }

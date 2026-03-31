@@ -112,7 +112,7 @@ export function useApiAsyncData<
     lazy = false,
     server = true,
     dedupe = 'cancel',
-    watch: watchOption = true,
+    watch: watchOption = undefined,
     paginated,
     initialPage,
     initialPerPage,
@@ -142,10 +142,15 @@ export function useApiAsyncData<
     );
   }
 
+  // For mutations (POST/PUT/PATCH/DELETE), auto-watch defaults to OFF unless explicitly enabled.
+  // For GET, auto-watch defaults to ON (reactive params, pagination).
+  const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes((method as string).toUpperCase());
+  const effectiveWatchOption = watchOption !== undefined ? watchOption : !isMutation;
+
   // Create reactive watch sources — use refs/computeds directly so Vue can track them
-  // watchOption: false disables auto-refresh entirely
+  // effectiveWatchOption: false disables auto-refresh entirely
   const watchSources =
-    watchOption === false
+    effectiveWatchOption === false
       ? []
       : [
           ...(typeof url === 'function' ? [url] : []),
@@ -322,13 +327,19 @@ export function useApiAsyncData<
     }
   };
 
+  // For mutations: use a static UUID-based key to prevent reactive key tracking.
+  // A reactive key function causes Nuxt to re-fetch whenever any Ref accessed inside it changes
+  // (e.g. URL params), which triggers duplicate calls when combined with manual .refresh().
+  // GETs keep the reactive computedKey for proper per-params cache isolation.
+  const resolvedKey = isMutation ? `${key}-${crypto.randomUUID()}` : computedKey;
+
   // Use Nuxt's useAsyncData with a computed key for proper cache isolation per params
-  const result = useAsyncData<InferData<T, Options>>(computedKey, fetchFn, {
+  const result = useAsyncData<InferData<T, Options>>(resolvedKey, fetchFn, {
     immediate,
     lazy,
     server,
     dedupe,
-    watch: watchOption === false ? [] : watchSources,
+    watch: effectiveWatchOption === false ? [] : watchSources,
   });
 
   if (!paginated) return result;

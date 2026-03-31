@@ -5,7 +5,7 @@ import { checkJavaInstalled } from '../generate.js';
 import { generateUseFetchComposables } from '../generators/use-fetch/generator.js';
 import { generateUseAsyncDataComposables } from '../generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from '../generators/nuxt-server/generator.js';
-import { generateConnectors } from '../generators/components/connector-generator/generator.js';
+import { generateConnectors } from '../generators/connectors/generator.js';
 import { createConsoleLogger } from '../cli/logger.js';
 import type { ModuleOptions } from './types.js';
 
@@ -112,7 +112,7 @@ export default defineNuxtModule<ModuleOptions>({
           {
             inputSpec: resolvedInput,
             outputDir: connectorsOutputDir,
-            composablesRelDir: '../use-async-data',
+            composablesRelDir: '../use-async-data/composables',
             runtimeRelDir: '../../runtime',
           },
           logger

@@ -49,16 +49,6 @@ function isArraySchema(schema: OpenApiPropertySchema): boolean {
   return schema.type === 'array' || schema.items !== undefined;
 }
 
-/** True when schema is a primitive scalar (string, number, integer, boolean) — not a resource */
-function isPrimitiveSchema(schema: OpenApiPropertySchema): boolean {
-  return (
-    schema.type === 'string' ||
-    schema.type === 'number' ||
-    schema.type === 'integer' ||
-    schema.type === 'boolean'
-  );
-}
-
 // ─── Request body schema ──────────────────────────────────────────────────────
 
 function getRequestBodySchema(operation: OpenApiOperation): OpenApiPropertySchema | undefined {
@@ -123,12 +113,6 @@ export function detectIntent(
         return 'list';
       }
 
-      // Primitive response (string, number, boolean) → not a CRUD resource
-      // e.g. GET /user/login returns a string token — not a list or detail
-      if (isPrimitiveSchema(responseSchema)) {
-        return 'unknown';
-      }
-
       // Object response — distinguish list vs detail by path structure:
       //   GET /pets/{id}  → has path param → detail (single item fetch)
       //   GET /pets       → no path param  → list (likely paginated envelope: { data: [], total: n })
@@ -178,6 +162,7 @@ export function extractEndpoints(
       intent,
       hasPathParams: pathParams.length > 0,
       pathParams,
+      hasQueryParams: (operation.parameters ?? []).some((p) => p.in === 'query'),
     };
 
     // Attach response schema for GET intents

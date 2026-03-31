@@ -33,6 +33,8 @@ export interface OpenApiPropertySchema {
   allOf?: OpenApiPropertySchema[];
   oneOf?: OpenApiPropertySchema[];
   anyOf?: OpenApiPropertySchema[];
+  /** Injected by the $ref resolver — original component schema name, e.g. 'Pet' */
+  'x-ref-name'?: string;
 }
 
 export interface OpenApiSchema extends OpenApiPropertySchema {
@@ -103,6 +105,8 @@ export interface EndpointInfo {
   responseSchema?: OpenApiSchema;
   hasPathParams: boolean;
   pathParams: string[];
+  /** True when the operation has at least one query parameter */
+  hasQueryParams: boolean;
 }
 
 // ─── Form field definition ───────────────────────────────────────────────────
@@ -153,6 +157,13 @@ export interface ResourceInfo {
   updateEndpoint?: EndpointInfo;
   /** The one endpoint detected as delete (DELETE) */
   deleteEndpoint?: EndpointInfo;
+
+  /**
+   * Inferred item model type name (e.g. 'Pet', 'Order') derived from the
+   * response schema's original $ref component name. Used for SDK type imports.
+   * Undefined when the response type is anonymous/primitive.
+   */
+  itemTypeName?: string;
 
   /** Columns inferred from the list/detail response schema */
   columns: ColumnDef[];

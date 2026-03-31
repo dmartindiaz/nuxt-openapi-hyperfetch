@@ -112,10 +112,19 @@ export function buildResourceMap(spec: OpenApiSpec): ResourceMap {
 
     const resourceName = pascalCase(tag);
 
+    // Infer the SDK model type name from the original $ref component name.
+    // Priority: detail response > list items > list response (may be envelope object).
+    const itemTypeName =
+      (detailEp?.responseSchema as any)?.['x-ref-name'] ??
+      (listEp?.responseSchema as any)?.items?.['x-ref-name'] ??
+      (listEp?.responseSchema as any)?.['x-ref-name'] ??
+      undefined;
+
     const info: ResourceInfo = {
       name: resourceName,
       tag,
       composableName: toConnectorName(tag),
+      itemTypeName,
       endpoints,
       listEndpoint: listEp,
       detailEndpoint: detailEp,

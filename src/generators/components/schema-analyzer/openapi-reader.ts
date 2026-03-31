@@ -51,7 +51,20 @@ function resolveRefs(node: unknown, root: OpenApiSpec, visited = new Set<string>
     const resolved = resolvePointer(root, ref);
     const newVisited = new Set(visited);
     newVisited.add(ref);
-    return resolveRefs(resolved, root, newVisited);
+    const resolvedFull = resolveRefs(resolved, root, newVisited);
+
+    // Annotate resolved schemas from #/components/schemas/Xxx with the original
+    // component name so downstream consumers can recover the model type name.
+    if (
+      typeof resolvedFull === 'object' &&
+      resolvedFull !== null &&
+      ref.startsWith('#/components/schemas/')
+    ) {
+      const refName = ref.split('/').pop()!;
+      return { ...(resolvedFull as object), 'x-ref-name': refName };
+    }
+
+    return resolvedFull;
   }
 
   const result: Record<string, unknown> = {};

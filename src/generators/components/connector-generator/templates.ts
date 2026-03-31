@@ -33,7 +33,7 @@ function toAsyncDataName(operationId: string): string {
  * 'useAsyncDataGetPets' → 'use-async-data-get-pets'
  */
 function toFileName(composableName: string): string {
-  return kebabCase(composableName);
+  return composableName;
 }
 
 // ─── Section builders ─────────────────────────────────────────────────────────
@@ -43,6 +43,15 @@ function toFileName(composableName: string): string {
  */
 function buildImports(resource: ResourceInfo, composablesRelDir: string, sdkRelDir: string, runtimeRelDir: string): string {
   const lines: string[] = [];
+
+  // vue — shallowRef needed when form, delete, or detail endpoints exist
+  const needsShallowRef = !!(resource.createEndpoint || resource.updateEndpoint || resource.deleteEndpoint || resource.detailEndpoint);
+  const needsComputed = !!resource.detailEndpoint;
+  if (needsShallowRef) {
+    const vueImports = needsComputed ? `shallowRef, computed` : `shallowRef`;
+    lines.push(`import { ${vueImports} } from 'vue';`);
+    lines.push('');
+  }
 
   // zod
   lines.push(`import { z } from 'zod';`);
@@ -178,6 +187,12 @@ function buildOptionsInterface(resource: ResourceInfo): string {
   if (resource.updateEndpoint && resource.zodSchemas.update) {
     fields.push(`  updateSchema?: z.ZodTypeAny | ((base: z.ZodTypeAny) => z.ZodTypeAny);`);
   }
+  if (resource.createEndpoint || resource.updateEndpoint || resource.deleteEndpoint) {
+    fields.push(`  onRequest?: (ctx: any) => void | Promise<void>;`);
+    fields.push(`  onSuccess?: (data: any) => void;`);
+    fields.push(`  onError?: (err: any) => void;`);
+    fields.push(`  onFinish?: () => void;`);
+  }
 
   if (fields.length === 0) {
     return `type ${typeName} = Record<string, never>;`;
@@ -222,6 +237,18 @@ function buildReturnType(resource: ResourceInfo): string {
 }
 
 /**
+ * Build the 3 generated lines for a composable that is keyed by a single path param
+ * (detail, delete). Uses computed(() => ({ param: ref.value })) so that p.value is
+ * always an object during setup — avoids `null.param` crash when Nuxt evaluates computedKey.
+ */
+function buildPathParamComposableLines(prefix: string, fn: string, pathParam: string): string[] {
+  return [
+    `  const ${prefix}Ref = shallowRef(null);`,
+    `  const ${prefix}Composable = ${fn}(computed(() => ({ ${pathParam}: ${prefix}Ref.value })) as any, { immediate: false });`,
+  ];
+}
+
+/**
  * Build the body of the exported connector function.
  */
 function buildFunctionBody(resource: ResourceInfo): string {
@@ -248,6 +275,10 @@ function buildFunctionBody(resource: ResourceInfo): string {
   }
   if (resource.updateEndpoint && resource.zodSchemas.update) {
     optionKeys.push('updateSchema');
+  }
+  const hasMutations = !!(resource.createEndpoint || resource.updateEndpoint || resource.deleteEndpoint);
+  if (hasMutations) {
+    optionKeys.push('onRequest', 'onSuccess', 'onError', 'onFinish');
   }
 
   const optionsDestructure =
@@ -283,7 +314,9 @@ function buildFunctionBody(resource: ResourceInfo): string {
 
   if (resource.detailEndpoint) {
     const fn = toAsyncDataName(resource.detailEndpoint.operationId);
-    subConnectors.push(`  const detail = useDetailConnector(${fn}) as unknown as DetailConnectorReturn<${pascal}>;`);
+    const pathParam = resource.detailEndpoint.pathParams[0] ?? 'id';
+    subConnectors.push(...buildPathParamComposableLines('_detail', fn, pathParam));
+    subConnectors.push(`  const detail = useDetailConnector((id: any) => { _detailRef.value = id; return _detailComposable; }) as unknown as DetailConnectorReturn<${pascal}>;`);
   }
 
   if (resource.createEndpoint) {
@@ -292,7 +325,9 @@ function buildFunctionBody(resource: ResourceInfo): string {
     const schemaArg = resource.zodSchemas.create
       ? `{ schema: ${pascal}CreateSchema, schemaOverride: createSchema }`
       : '{}';
-    subConnectors.push(`  const createForm = useFormConnector(${fn}, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
+    subConnectors.push(`  const _createRef = shallowRef({});`);
+    subConnectors.push(`  const _createComposable = ${fn}(_createRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
+    subConnectors.push(`  const createForm = useFormConnector((p: any) => { _createRef.value = p; return _createComposable; }, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
   }
 
   if (resource.updateEndpoint) {
@@ -308,12 +343,23 @@ function buildFunctionBody(resource: ResourceInfo): string {
     } else if (hasDetail) {
       schemaArg = `{ loadWith: detail }`;
     }
-    subConnectors.push(`  const updateForm = useFormConnector(${fn}, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
+    subConnectors.push(`  const _updateRef = shallowRef({});`);
+    subConnectors.push(`  const _updateComposable = ${fn}(_updateRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
+    subConnectors.push(`  const updateForm = useFormConnector((p: any) => { _updateRef.value = p; return _updateComposable; }, ${schemaArg}) as unknown as FormConnectorReturn<${inputType}>;`);
   }
 
   if (resource.deleteEndpoint) {
     const fn = toAsyncDataName(resource.deleteEndpoint.operationId);
-    subConnectors.push(`  const deleteAction = useDeleteConnector(${fn}) as unknown as DeleteConnectorReturn<${pascal}>;`);
+    const pathParam = resource.deleteEndpoint.pathParams[0];
+    if (pathParam) {
+      subConnectors.push(...buildPathParamComposableLines('_delete', fn, pathParam));
+      subConnectors.push(`  const _deleteComposableWithHooks = ${fn}(computed(() => ({ ${pathParam}: _deleteRef.value })) as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
+      subConnectors.push(`  const deleteAction = useDeleteConnector((item: any) => { _deleteRef.value = item?.${pathParam} ?? item?.id ?? item; return _deleteComposableWithHooks; }) as unknown as DeleteConnectorReturn<${pascal}>;`);
+    } else {
+      subConnectors.push(`  const _deleteRef = shallowRef({});`);
+      subConnectors.push(`  const _deleteComposable = ${fn}(_deleteRef as any, { immediate: false, onRequest, onSuccess, onError, onFinish });`);
+      subConnectors.push(`  const deleteAction = useDeleteConnector((p: any) => { _deleteRef.value = p; return _deleteComposable; }) as unknown as DeleteConnectorReturn<${pascal}>;`);
+    }
   }
 
   // Return object — always includes table (undefined when no list + no factory)

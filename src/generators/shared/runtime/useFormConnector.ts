@@ -94,9 +94,9 @@ export function useFormConnector(composableFn, options = {}) {
       // The mutation composable accepts the model as its payload
       const composable = composableFn(model.value);
 
-      // Wait for the async data to resolve
-      if (composable.execute) {
-        await composable.execute();
+      // refresh() bypasses Nuxt SSR payload cache, forcing a real network request
+      if (composable.refresh) {
+        await composable.refresh();
       }
 
       const data = composable.data?.value;
@@ -108,6 +108,7 @@ export function useFormConnector(composableFn, options = {}) {
 
       onSuccess.value?.(data);
     } catch (err) {
+      console.error('[useFormConnector] submit error:', err);
       submitError.value = err;
       onError.value?.(err);
     } finally {

@@ -1,6 +1,6 @@
 {
   "name": "nuxt-openapi-hyperfetch",
-  "version": "0.3.2-beta",
+  "version": "0.3.81-beta",
   "description": "Nuxt useFetch, useAsyncData and Nuxt server OpenAPI generator",
   "type": "module",
   "author": "",
@@ -40,7 +40,8 @@
     "format": "prettier --write \"**/*.{ts,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,json,md,yaml,yml}\"",
     "type-check": "tsc --noEmit",
-    "validate": "npm run type-check && npm run lint && npm run format:check"
+    "validate": "npm run type-check && npm run lint && npm run format:check",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.0.0 || ^4.0.0",
@@ -73,7 +74,8 @@
     "eslint-plugin-prettier": "^5.5.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1"
+    "typescript-eslint": "^8.57.1",
+    "zod": "^4.3.6"
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0",
