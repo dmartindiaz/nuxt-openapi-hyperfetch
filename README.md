@@ -9,7 +9,9 @@
 
 <p align="center">
   <a href="https://nuxt-openapi-hyperfetch.netlify.app/">📖 Documentation</a> ·
-  <a href="#connectors">Connectors</a> ·
+  <a href="#ready-to-use-usefetch-and-useasyncdata-composables">useFetch & useAsyncData</a> ·
+  <a href="#ready-to-use-nuxt-server-routes">Nuxt Server</a> ·
+  <a href="#connectors">Headless UI Connectors</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#quick-start">Quick Start</a>
 </p>
@@ -41,7 +43,7 @@ All output is 100% Nuxt-native. No runtime dependencies in the generated code.
 
 ---
 
-## Also generates: `useFetch` and `useAsyncData` composables
+## Ready to use: `useFetch` and `useAsyncData` composables
 
 One composable per endpoint, for when you need direct control:
 
@@ -83,7 +85,7 @@ const { data: pets } = await useAsyncDataFindPets(
 
 ---
 
-## Also generates: Nuxt Server Routes
+## Ready to use: Nuxt Server Routes
 
 Proxy endpoints to keep API keys server-side:
 

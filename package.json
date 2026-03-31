@@ -1,7 +1,7 @@
 {
   "name": "nuxt-openapi-hyperfetch",
-  "version": "0.3.81-beta",
-  "description": "Nuxt useFetch, useAsyncData and Nuxt server OpenAPI generator",
+  "version": "1.0.0",
+  "description": "Nuxt useFetch, useAsyncData, Nuxt server & Headless UI connectors OpenAPI generator",
   "type": "module",
   "author": "",
   "license": "Apache-2.0",
