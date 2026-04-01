@@ -242,6 +242,16 @@ nxh generate -i ./swagger.yaml -o ./composables/api
 
 The CLI asks for your spec path, output folder, engine (`heyapi` or `official`), and which generators to run.
 
+### Generators semantics (CLI + config)
+
+`generators` now supports `connectors` as a declarative option.
+
+- `['connectors']` → generates `useAsyncData` + `connectors`
+- `['useAsyncData']` → generates only `useAsyncData`
+- `['useAsyncData', 'connectors']` → generates both
+
+`createUseAsyncDataConnectors` is still supported for backward compatibility, but `generators: ['connectors']` is the recommended setup.
+
 ### Nuxt module
 
 ```ts
@@ -252,7 +262,7 @@ export default defineNuxtConfig({
   openApiHyperFetch: {
     input: './swagger.yaml',
     output: './composables/api',
-    generators: ['useFetch', 'useAsyncData', 'nuxtServer'],
+    generators: ['useFetch', 'connectors', 'nuxtServer'],
     backend: 'heyapi',
     enableAutoImport: true,
   },

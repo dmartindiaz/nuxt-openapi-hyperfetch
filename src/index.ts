@@ -17,7 +17,14 @@ import {
 } from './cli/prompts.js';
 import { MESSAGES } from './cli/messages.js';
 import { displayLogo } from './cli/logo.js';
-import { loadConfig, mergeConfig, parseTags, parseGenerators } from './cli/config.js';
+import {
+  loadConfig,
+  mergeConfig,
+  parseTags,
+  parseGenerators,
+  normalizeGenerators,
+  type ComposableGeneratorType,
+} from './cli/config.js';
 
 const program = new Command();
 
@@ -54,7 +61,7 @@ program
   .option('--dry-run', 'Preview changes without writing files', false)
   .option('-v, --verbose', 'Enable verbose logging', false)
   .option('--watch', 'Watch mode - regenerate on file changes', false)
-  .option('--generators <types>', 'Generators to use: useFetch,useAsyncData,nuxtServer')
+  .option('--generators <types>', 'Generators to use: useFetch,useAsyncData,nuxtServer,connectors')
   .option('--connectors', 'Generate headless UI connectors on top of useAsyncData', false)
   .option('--server-route-path <path>', 'Server route path (for nuxtServer mode)')
   .option('--enable-bff', 'Enable BFF pattern (for nuxtServer mode)', false)
@@ -127,19 +134,27 @@ program
       }
 
       // 1. Determine composables to generate FIRST
-      let composables: ('useFetch' | 'useAsyncData' | 'nuxtServer')[];
+      let composables: ComposableGeneratorType[];
+      let generateConnectorsFlag = false;
 
       if (config.generators) {
-        // filter out 'connectors' — handled separately below
-        composables = config.generators.filter(
-          (g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' => g !== 'connectors'
+        const normalized = normalizeGenerators(
+          config.generators,
+          config.createUseAsyncDataConnectors
         );
+        composables = normalized.composables;
+        generateConnectorsFlag = normalized.generateConnectors;
         if (config.verbose) {
           console.log(`Using generators from config: ${composables.join(', ')}`);
         }
       } else {
         const result = await promptComposablesSelection();
-        composables = result.composables;
+        const normalized = normalizeGenerators(
+          result.composables,
+          config.createUseAsyncDataConnectors
+        );
+        composables = normalized.composables;
+        generateConnectorsFlag = normalized.generateConnectors;
       }
 
       if (composables.length === 0) {
@@ -165,12 +180,16 @@ program
         outputPath = config.output ?? './swagger';
       }
 
-      // 3. Ask whether to generate headless connectors (only if useAsyncData selected)
-      let generateConnectorsFlag = false;
+      // 3. Ask whether to generate headless connectors (only if still unresolved)
       if (composables.includes('useAsyncData')) {
-        if (config.createUseAsyncDataConnectors !== undefined) {
-          generateConnectorsFlag = config.createUseAsyncDataConnectors;
-        } else {
+        const hasExplicitConnectorsInGenerators =
+          config.generators?.includes('connectors') ?? false;
+        const shouldPromptConnectors =
+          !generateConnectorsFlag &&
+          config.createUseAsyncDataConnectors === undefined &&
+          !hasExplicitConnectorsInGenerators;
+
+        if (shouldPromptConnectors) {
           generateConnectorsFlag = await promptConnectors();
         }
       }

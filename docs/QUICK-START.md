@@ -98,6 +98,16 @@ useFetchAddPet → useApiRequest → useFetch (Nuxt native)
 | Plugin templates | ❌         | ✅ (once)       | ✅ (safe)        |
 | CLI tool itself  | ❌         | ❌              | ✅ (you edit)    |
 
+### 4. Generator Selection Semantics (CLI + Nuxt module)
+
+Generator selection is unified between `nxh.config.*` and `nuxt.config.ts`.
+
+- `generators: ['connectors']` runs `useAsyncData` first, then `connectors`
+- `generators: ['useAsyncData']` runs only `useAsyncData`
+- `generators: ['useAsyncData', 'connectors']` runs both
+
+`createUseAsyncDataConnectors` remains available for backward compatibility, but `generators: ['connectors']` is the preferred declarative option.
+
 ## Key Files (Read These First)
 
 ### 1. **CLI Entry** - `src/index.ts`

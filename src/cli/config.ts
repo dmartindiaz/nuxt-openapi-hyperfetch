@@ -5,6 +5,20 @@ import type { GeneratorBackend, ConfigGenerator } from './types.js';
 
 const { existsSync } = fs;
 
+export type GeneratorType = 'useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors';
+export type ComposableGeneratorType = 'useFetch' | 'useAsyncData' | 'nuxtServer';
+
+export interface NormalizedGenerators {
+  composables: ComposableGeneratorType[];
+  generateConnectors: boolean;
+}
+
+const COMPOSABLE_GENERATOR_ORDER: readonly ComposableGeneratorType[] = [
+  'useFetch',
+  'useAsyncData',
+  'nuxtServer',
+] as const;
+
 /**
  * Configuration options for the generator
  */
@@ -29,8 +43,14 @@ export interface GeneratorConfig {
   verbose?: boolean;
   /** Watch mode - regenerate on file changes */
   watch?: boolean;
-  /** Generator types to use */
-  generators?: ('useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors')[];
+  /**
+   * Generator types to use.
+   * Semantics:
+   * - 'connectors' implies 'useAsyncData' automatically
+   * - ['useAsyncData'] generates only useAsyncData
+   * - ['useAsyncData', 'connectors'] generates both
+   */
+  generators?: GeneratorType[];
   /** Server route path (for nuxtServer mode) */
   serverRoutePath?: string;
   /** Enable BFF pattern (for nuxtServer mode) */
@@ -45,9 +65,9 @@ export interface GeneratorConfig {
    */
   generator?: ConfigGenerator;
   /**
-   * Generate headless UI connector composables on top of useAsyncData.
-   * Connectors provide ready-made logic for tables, pagination, forms and delete actions.
-   * Requires useAsyncData to also be generated.
+   * Backward-compatible connectors flag.
+   * Prefer `generators: ['connectors']` for declarative behavior.
+   * When true, connectors are generated and useAsyncData is added automatically.
    * @default false
    */
   createUseAsyncDataConnectors?: boolean;
@@ -134,14 +154,37 @@ export function parseTags(tagsString?: string): string[] | undefined {
 /**
  * Parse generators string into array
  */
-export function parseGenerators(
-  generatorsString?: string
-): ('useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors')[] | undefined {
+export function parseGenerators(generatorsString?: string): GeneratorType[] | undefined {
   if (!generatorsString) {
     return undefined;
   }
   const parts = generatorsString.split(',').map((g) => g.trim());
-  return parts.filter((g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors' =>
+  return parts.filter((g): g is GeneratorType =>
     ['useFetch', 'useAsyncData', 'nuxtServer', 'connectors'].includes(g)
   );
+}
+
+/**
+ * Normalize generator selection so connectors can be requested declaratively.
+ * Rules:
+ * - If `connectors` is selected, `useAsyncData` is added automatically.
+ * - If `createUseAsyncDataConnectors` is true, connectors are enabled and
+ *   `useAsyncData` is added automatically.
+ */
+export function normalizeGenerators(
+  generators?: GeneratorType[],
+  createUseAsyncDataConnectors?: boolean
+): NormalizedGenerators {
+  const requested = new Set(generators ?? []);
+  const generateConnectors = requested.has('connectors') || createUseAsyncDataConnectors === true;
+
+  const composables: ComposableGeneratorType[] = COMPOSABLE_GENERATOR_ORDER.filter((generator) =>
+    requested.has(generator)
+  );
+
+  if (generateConnectors && !composables.includes('useAsyncData')) {
+    composables.push('useAsyncData');
+  }
+
+  return { composables, generateConnectors };
 }
