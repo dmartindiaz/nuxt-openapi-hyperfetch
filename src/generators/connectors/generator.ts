@@ -9,6 +9,7 @@ import {
   generateConnectorIndexFile,
 } from './templates.js';
 import type { ConnectorGeneratorOptions } from './types.js';
+import { resolveConnectorResourceMap } from './config-resolver.js';
 import { type Logger, createClackLogger } from '../../cli/logger.js';
 
 // Runtime files that must be copied to the user's project
@@ -56,7 +57,8 @@ export async function generateConnectors(
 
   // ── 1. Analyze spec ───────────────────────────────────────────────────────
   spinner.start('Analyzing OpenAPI spec');
-  const resourceMap = analyzeSpec(options.inputSpec);
+  const baseResourceMap = analyzeSpec(options.inputSpec);
+  const resourceMap = resolveConnectorResourceMap(baseResourceMap, options.connectorsConfig);
   spinner.stop(`Found ${resourceMap.size} resource(s)`);
 
   if (resourceMap.size === 0) {

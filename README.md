@@ -49,10 +49,10 @@ One composable per endpoint, for when you need direct control:
 
 ```ts
 // useFetch — reactive, bound to template lifecycle
-const { data: pet, pending, error } = useFetchGetPetById({ petId: 123 })
+const { data: pet, pending, error } = useFetchGetPetById({ petId: 123 });
 
 // useAsyncData — SSR-compatible, awaitable
-const { data: pets } = await useAsyncDataFindPets({ status: 'available' })
+const { data: pets } = await useAsyncDataFindPets({ status: 'available' });
 ```
 
 With callbacks and request modification:
@@ -64,13 +64,13 @@ const { data } = useFetchFindPets(
   {
     onRequest: (ctx) => {
       // ctx: { url, method, headers, query, body }
-      return { headers: { 'X-Source': 'pets-page' } }
+      return { headers: { 'X-Source': 'pets-page' } };
     },
     onSuccess: (pets) => console.log(`${pets.length} pets loaded`),
     onError: (err) => console.error(err.message),
     onFinish: ({ success }) => console.log('Done:', success),
   }
-)
+);
 
 // useAsyncData — onSuccess and onError receive a second context argument
 const { data: pets } = await useAsyncDataFindPets(
@@ -80,7 +80,7 @@ const { data: pets } = await useAsyncDataFindPets(
     onSuccess: (pets, ctx) => console.log(`${pets.length} from ${ctx.url}`),
     onError: (err, ctx) => console.error(err.message, ctx.url),
   }
-)
+);
 ```
 
 ---
@@ -95,7 +95,7 @@ Client → Nuxt Server Route (generated) → External API
 
 ```ts
 // Works automatically after generation
-const { data } = useFetch('/api/pet/123')
+const { data } = useFetch('/api/pet/123');
 ```
 
 ---
@@ -105,19 +105,19 @@ const { data } = useFetch('/api/pet/123')
 A connector exposes five sub-composables for one resource. For a `pet` tag in your spec:
 
 ```ts
-const { getAll, get, create, update, del } = usePetsConnector()
+const { getAll, get, create, update, del } = usePetsConnector();
 ```
 
 ### Full CRUD page in one component
 
 ```vue
 <script setup lang="ts">
-const { getAll, create, update, del } = usePetsConnector()
+const { getAll, create, update, del } = usePetsConnector();
 
 // Reload the list after every mutation
-create.onSuccess(() => getAll.load())
-update.onSuccess(() => getAll.load())
-del.onSuccess(()    => getAll.load())
+create.onSuccess(() => getAll.load());
+update.onSuccess(() => getAll.load());
+del.onSuccess(() => getAll.load());
 </script>
 
 <template>
@@ -141,8 +141,7 @@ del.onSuccess(()    => getAll.load())
         <UInput v-model="create.model.value.name" />
       </UFormField>
       <UFormField label="Status">
-        <USelect v-model="create.model.value.status"
-          :options="['available','pending','sold']" />
+        <USelect v-model="create.model.value.status" :options="['available', 'pending', 'sold']" />
       </UFormField>
       <template #footer>
         <UButton :loading="create.loading.value" @click="create.execute()">Save</UButton>
@@ -155,8 +154,9 @@ del.onSuccess(()    => getAll.load())
     <UCard>
       <UInput v-model="update.model.value.name" />
       <template #footer>
-        <UButton :loading="update.loading.value"
-          @click="update.execute(update.model.value.id)">Save changes</UButton>
+        <UButton :loading="update.loading.value" @click="update.execute(update.model.value.id)"
+          >Save changes</UButton
+        >
       </template>
     </UCard>
   </UModal>
@@ -164,7 +164,10 @@ del.onSuccess(()    => getAll.load())
   <!-- Delete confirmation -->
   <UModal v-model:open="del.ui.isOpen.value">
     <UCard>
-      <p>Delete <strong>{{ del.staged.value?.name }}</strong>?</p>
+      <p>
+        Delete <strong>{{ del.staged.value?.name }}</strong
+        >?
+      </p>
       <template #footer>
         <UButton color="red" :loading="del.loading.value" @click="del.execute()">Delete</UButton>
         <UButton variant="outline" @click="del.ui.close()">Cancel</UButton>
@@ -176,21 +179,21 @@ del.onSuccess(()    => getAll.load())
 
 ### What each sub-connector provides
 
-| Key | Transport | What you get |
-|---|---|---|
+| Key      | Transport      | What you get                                                               |
+| -------- | -------------- | -------------------------------------------------------------------------- |
 | `getAll` | `useAsyncData` | `items`, `columns`, `loading`, `error`, `pagination`, `selected`, `load()` |
-| `get` | `$fetch` | `data`, `loading`, `error`, `load(id)`, `clear()` |
-| `create` | `$fetch` | `model`, `errors`, `isValid`, `execute()`, `reset()`, `ui.open/close` |
-| `update` | `$fetch` | Same as create + `load(id)`, `ui.open(row)`, `targetId` |
-| `del` | `$fetch` | `staged`, `hasStaged`, `execute()`, `ui.open(item)/close` |
+| `get`    | `$fetch`       | `data`, `loading`, `error`, `load(id)`, `clear()`                          |
+| `create` | `$fetch`       | `model`, `errors`, `isValid`, `execute()`, `reset()`, `ui.open/close`      |
+| `update` | `$fetch`       | Same as create + `load(id)`, `ui.open(row)`, `targetId`                    |
+| `del`    | `$fetch`       | `staged`, `hasStaged`, `execute()`, `ui.open(item)/close`                  |
 
 ### Reactive list parameters
 
 ```ts
-const status = ref('available')
+const status = ref('available');
 
 // Re-fetches automatically when status changes
-const { getAll } = usePetsConnector(() => ({ status: status.value }))
+const { getAll } = usePetsConnector(() => ({ status: status.value }));
 ```
 
 ### Zod validation, out of the box
@@ -199,11 +202,15 @@ Schemas are generated from your OpenAPI `requestBody`. `create.execute()` valida
 
 ```ts
 // Extend the generated schema for extra rules
-const { create } = usePetsConnector({}, {
-  createSchema: (base) => base.extend({
-    name: z.string().min(2, 'At least 2 characters'),
-  })
-})
+const { create } = usePetsConnector(
+  {},
+  {
+    createSchema: (base) =>
+      base.extend({
+        name: z.string().min(2, 'At least 2 characters'),
+      }),
+  }
+);
 ```
 
 ### Global callbacks
@@ -215,11 +222,11 @@ Register once, applies to every API call in the app:
 defineGlobalApiCallbacks([
   {
     onRequest: (ctx) => ({
-      headers: { Authorization: `Bearer ${useAuthStore().token}` }
+      headers: { Authorization: `Bearer ${useAuthStore().token}` },
     }),
     onError: (err) => useToast().add({ title: err.message, color: 'red' }),
-  }
-])
+  },
+]);
 ```
 
 Connector-level and per-operation callbacks are also available — see [Callbacks docs](./docs/connectors/callbacks.md).
@@ -252,6 +259,45 @@ The CLI asks for your spec path, output folder, engine (`heyapi` or `official`),
 
 `createUseAsyncDataConnectors` is still supported for backward compatibility, but `generators: ['connectors']` is the recommended setup.
 
+### Typed `nxh.config.ts`
+
+The CLI now supports `nxh.config.ts` (besides `.js`/`.mjs`).
+
+```ts
+// nxh.config.ts
+import type { GeneratorConfig } from 'nuxt-openapi-hyperfetch';
+
+const config: GeneratorConfig = {
+  input: './swagger.yaml',
+  output: './composables/api',
+  generators: ['useAsyncData', 'connectors'],
+  connectors: {
+    strategy: 'hybrid',
+    resources: {
+      pets: {
+        operations: {
+          getAll: { operationId: 'findPetsByStatus' },
+          get: { path: '/pet/{petId}' },
+        },
+      },
+      featuredPets: {
+        operations: {
+          getAll: { operationId: 'findPetsByTags' },
+          get: { operationId: 'getPetById' },
+        },
+      },
+    },
+  },
+};
+
+export default config;
+```
+
+`connectors.strategy` supports:
+
+- `manual`: generate only resources defined by the user
+- `hybrid`: start from inferred resources and apply user overrides/custom resources
+
 ### Nuxt module
 
 ```ts
@@ -266,7 +312,7 @@ export default defineNuxtConfig({
     backend: 'heyapi',
     enableAutoImport: true,
   },
-})
+});
 ```
 
 ### Configure the base URL
@@ -274,7 +320,9 @@ export default defineNuxtConfig({
 ```ts
 // nuxt.config.ts
 runtimeConfig: {
-  public: { apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://api.example.com' }
+  public: {
+    apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://api.example.com';
+  }
 }
 ```
 
@@ -284,28 +332,28 @@ All generated composables and connectors pick up `apiBaseUrl` automatically.
 
 ## Two generation engines
 
-| Engine | Requires | Best for |
-|---|---|---|
-| `heyapi` | Node only | Quick setup, CI/CD |
-| `official` | Java 11+ | Maximum spec compatibility |
+| Engine     | Requires  | Best for                   |
+| ---------- | --------- | -------------------------- |
+| `heyapi`   | Node only | Quick setup, CI/CD         |
+| `official` | Java 11+  | Maximum spec compatibility |
 
 Pre-select in `nxh.config.js` to skip the prompt:
 
 ```js
-export default { generator: 'heyapi', input: './swagger.yaml', output: './api' }
+export default { generator: 'heyapi', input: './swagger.yaml', output: './api' };
 ```
 
 ---
 
 ## Documentation
 
-| | |
-|---|---|
-| [Connectors](./docs/connectors/index.md) | Full connector API reference and examples |
-| [Quick Start](./docs/QUICK-START.md) | From zero to working composables in 5 minutes |
-| [API Reference](./docs/API-REFERENCE.md) | All options and TypeScript types |
-| [Architecture](./docs/ARCHITECTURE.md) | How the generator works internally |
-| [Troubleshooting](./docs/TROUBLESHOOTING.md) | Common errors and solutions |
+|                                              |                                               |
+| -------------------------------------------- | --------------------------------------------- |
+| [Connectors](./docs/connectors/index.md)     | Full connector API reference and examples     |
+| [Quick Start](./docs/QUICK-START.md)         | From zero to working composables in 5 minutes |
+| [API Reference](./docs/API-REFERENCE.md)     | All options and TypeScript types              |
+| [Architecture](./docs/ARCHITECTURE.md)       | How the generator works internally            |
+| [Troubleshooting](./docs/TROUBLESHOOTING.md) | Common errors and solutions                   |
 
 ---
 
@@ -318,7 +366,6 @@ npm run validate   # lint + type check
 ```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
 
 ---
 

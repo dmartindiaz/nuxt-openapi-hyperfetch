@@ -8,6 +8,11 @@ import { generateNuxtServerRoutes } from '../generators/nuxt-server/generator.js
 import { generateConnectors } from '../generators/connectors/generator.js';
 import { createConsoleLogger } from '../cli/logger.js';
 import { normalizeGenerators } from '../cli/config.js';
+import {
+  ensureUseAsyncDataForConnectors,
+  isConnectorsRequested,
+  toRuntimeComposableGenerators,
+} from '../config/connectors.js';
 import type { ModuleOptions } from './types.js';
 
 export default defineNuxtModule<ModuleOptions>({
@@ -46,6 +51,7 @@ export default defineNuxtModule<ModuleOptions>({
     );
     const selectedGenerators = normalized.composables;
     const generateConnectorsFlag = normalized.generateConnectors;
+    const connectorsRequested = isConnectorsRequested(options);
     const backend = options.backend ?? 'heyapi';
     const logger = createConsoleLogger();
 
@@ -109,7 +115,7 @@ export default defineNuxtModule<ModuleOptions>({
       }
 
       // 3. Generate headless connectors if requested (requires useAsyncData)
-      if (generateConnectorsFlag && selectedGenerators.includes('useAsyncData')) {
+      if ((generateConnectorsFlag || connectorsRequested) && selectedGenerators.includes('useAsyncData')) {
         const connectorsOutputDir = path.join(composablesOutputDir, 'connectors');
         await generateConnectors(
           {
@@ -117,6 +123,7 @@ export default defineNuxtModule<ModuleOptions>({
             outputDir: connectorsOutputDir,
             composablesRelDir: '../use-async-data/composables',
             runtimeRelDir: '../../runtime',
+            connectorsConfig: options.connectors,
           },
           logger
         );
@@ -148,7 +155,7 @@ export default defineNuxtModule<ModuleOptions>({
       if (selectedGenerators.includes('useAsyncData')) {
         addImportsDir(path.join(composablesOutputDir, 'use-async-data', 'composables'));
       }
-      if (generateConnectorsFlag && selectedGenerators.includes('useAsyncData')) {
+      if ((generateConnectorsFlag || connectorsRequested) && selectedGenerators.includes('useAsyncData')) {
         addImportsDir(path.join(composablesOutputDir, 'connectors'));
       }
     }

@@ -181,6 +181,7 @@ function buildOptionsInterface(resource: ResourceInfo): string {
   if (resource.listEndpoint && hasColumns) {
     fields.push(`  columnLabels?: Record<string, string>;`);
     fields.push(`  columnLabel?: (key: string) => string;`);
+    fields.push(`  getAllRequestOptions?: Record<string, unknown>;`);
   }
   if (resource.createEndpoint && resource.zodSchemas.create) {
     const pascal = pascalCase(resource.name);
@@ -264,7 +265,9 @@ function buildFunctionBody(resource: ResourceInfo): string {
   // Options destructure
   const optionKeys: string[] = [];
   if (resource.listEndpoint && hasColumns) {
-    optionKeys.push('columnLabels', 'columnLabel');
+    optionKeys.push('columnLabels', 'columnLabel', 'getAllRequestOptions');
+  } else if (resource.listEndpoint) {
+    optionKeys.push('getAllRequestOptions');
   }
   if (resource.createEndpoint && resource.zodSchemas.create) {
     optionKeys.push('createSchema');
@@ -317,7 +320,7 @@ function buildFunctionBody(resource: ResourceInfo): string {
       `  const isFactory = typeof paramsOrSource === 'function';`,
       `  const listFactory = isFactory`,
       `    ? (paramsOrSource as () => unknown)`,
-      `    : () => ${fn}((paramsOrSource ?? {}) as ${listRequestTypeName});`,
+      `    : () => ${fn}((paramsOrSource ?? {}) as ${listRequestTypeName}, { paginated: true, ...(getAllRequestOptions ?? {}) });`,
       `  const getAll = useGetAllConnector(listFactory, ${opts}) as unknown as GetAllConnectorReturn<${pascal}>;`
     );
   } else {

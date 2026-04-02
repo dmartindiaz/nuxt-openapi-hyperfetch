@@ -86,6 +86,7 @@
     "fs-extra": "^11.3.4",
     "globby": "^16.1.1",
     "gradient-string": "^3.0.0",
+    "jiti": "^2.6.1",
     "js-yaml": "^4.1.1",
     "prettier": "^3.8.1",
     "ts-morph": "^27.0.2"

@@ -16,7 +16,6 @@ import {
   promptConnectors,
 } from './cli/prompts.js';
 import { MESSAGES } from './cli/messages.js';
-import { displayLogo } from './cli/logo.js';
 import {
   loadConfig,
   mergeConfig,
@@ -25,6 +24,12 @@ import {
   normalizeGenerators,
   type ComposableGeneratorType,
 } from './cli/config.js';
+import {
+  ensureUseAsyncDataForConnectors,
+  hasConnectorsConfig,
+  isConnectorsRequested,
+  toRuntimeComposableGenerators,
+} from './config/connectors.js';
 
 const program = new Command();
 
@@ -136,6 +141,8 @@ program
       // 1. Determine composables to generate FIRST
       let composables: ComposableGeneratorType[];
       let generateConnectorsFlag = false;
+      const connectorsRequested = isConnectorsRequested(config);
+      const connectorsConfigured = hasConnectorsConfig(config.connectors);
 
       if (config.generators) {
         const normalized = normalizeGenerators(
@@ -187,10 +194,17 @@ program
         const shouldPromptConnectors =
           !generateConnectorsFlag &&
           config.createUseAsyncDataConnectors === undefined &&
-          !hasExplicitConnectorsInGenerators;
+          !hasExplicitConnectorsInGenerators &&
+          !connectorsConfigured;
 
         if (shouldPromptConnectors) {
           generateConnectorsFlag = await promptConnectors();
+        } else if (connectorsConfigured) {
+          generateConnectorsFlag = true;
+        } else if (config.createUseAsyncDataConnectors !== undefined) {
+          generateConnectorsFlag = config.createUseAsyncDataConnectors;
+        } else if (hasExplicitConnectorsInGenerators) {
+          generateConnectorsFlag = true;
         }
       }
 
@@ -280,6 +294,7 @@ program
               outputDir: `${composablesOutputDir}/connectors`,
               composablesRelDir: '../use-async-data/composables',
               runtimeRelDir: '../../runtime',
+              connectorsConfig: config.connectors,
             });
             spinner.stop('✓ Generated headless UI connectors');
           } else {
