@@ -5,6 +5,8 @@
  * and writes one `use{Resource}Connector.ts` file per resource using $fetch for mutations.
  */
 
+import type { ConnectorsConfig } from '../../config/types.js';
+
 export interface ConnectorGeneratorOptions {
   /** Absolute or relative path to the OpenAPI YAML/JSON spec */
   inputSpec: string;
@@ -25,6 +27,8 @@ export interface ConnectorGeneratorOptions {
    * useRuntimeConfig().public.apiBaseUrl at runtime.
    */
   baseUrl?: string;
+  /** Advanced connectors configuration (manual/hybrid, custom resources, overloads). */
+  connectorsConfig?: ConnectorsConfig;
 }
 
 export interface ConnectorFileInfo {

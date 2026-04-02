@@ -15,10 +15,10 @@ OpenAPI/Swagger → TypeScript Client → Nuxt Composables
 
 The tool supports two backends for **Stage 1** (OpenAPI → TypeScript Client). You choose at runtime:
 
-| Backend | Command | Requires | Output format |
-|---|---|---|---|
-| **OpenAPI Generator** (official) | `@openapitools/openapi-generator-cli` | Java 11+ | `apis/PetApi.ts`, `models/` |
-| **Hey API** | `@hey-api/openapi-ts` | Node.js only | `sdk.gen.ts`, `types.gen.ts` |
+| Backend                          | Command                               | Requires     | Output format                |
+| -------------------------------- | ------------------------------------- | ------------ | ---------------------------- |
+| **OpenAPI Generator** (official) | `@openapitools/openapi-generator-cli` | Java 11+     | `apis/PetApi.ts`, `models/`  |
+| **Hey API**                      | `@hey-api/openapi-ts`                 | Node.js only | `sdk.gen.ts`, `types.gen.ts` |
 
 Both produce the same final Nuxt composables. The choice affects only Stage 1 output and the parser used in Stage 2.
 
@@ -230,6 +230,36 @@ nuxt-generator/
 ```
 
 ## Most Common Tasks
+
+### Configure Connectors (manual/hybrid)
+
+Use `connectors` in `nxh.config.ts` or `openApiHyperFetch` in `nuxt.config.ts`.
+
+```ts
+connectors: {
+  strategy: 'hybrid',
+  resources: {
+    pets: {
+      operations: {
+        getAll: { operationId: 'findPetsByStatus' },
+        get: { path: '/pet/{petId}' }
+      }
+    },
+    featuredPets: {
+      operations: {
+        getAll: { operationId: 'findPetsByTags' }
+      }
+    }
+  }
+}
+```
+
+Rules:
+
+- Each operation accepts `operationId` or `path` (never both)
+- Partial override is allowed (you can define only `get` and `getAll`)
+- `manual` generates only configured resources
+- `hybrid` merges inferred resources with configured overrides/custom resources
 
 ### Debugging a Parser Error
 

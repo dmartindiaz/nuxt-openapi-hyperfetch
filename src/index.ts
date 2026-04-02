@@ -18,6 +18,12 @@ import {
 import { MESSAGES } from './cli/messages.js';
 import { displayLogo } from './cli/logo.js';
 import { loadConfig, mergeConfig, parseTags, parseGenerators } from './cli/config.js';
+import {
+  ensureUseAsyncDataForConnectors,
+  hasConnectorsConfig,
+  isConnectorsRequested,
+  toRuntimeComposableGenerators,
+} from './config/connectors.js';
 
 const program = new Command();
 
@@ -128,18 +134,19 @@ program
 
       // 1. Determine composables to generate FIRST
       let composables: ('useFetch' | 'useAsyncData' | 'nuxtServer')[];
+      const connectorsRequested = isConnectorsRequested(config);
+      const connectorsConfigured = hasConnectorsConfig(config.connectors);
 
       if (config.generators) {
-        // filter out 'connectors' — handled separately below
-        composables = config.generators.filter(
-          (g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' => g !== 'connectors'
-        );
+        composables = toRuntimeComposableGenerators(config.generators);
+        composables = ensureUseAsyncDataForConnectors(composables, connectorsRequested);
         if (config.verbose) {
           console.log(`Using generators from config: ${composables.join(', ')}`);
         }
       } else {
         const result = await promptComposablesSelection();
         composables = result.composables;
+        composables = ensureUseAsyncDataForConnectors(composables, connectorsRequested);
       }
 
       if (composables.length === 0) {
@@ -168,8 +175,12 @@ program
       // 3. Ask whether to generate headless connectors (only if useAsyncData selected)
       let generateConnectorsFlag = false;
       if (composables.includes('useAsyncData')) {
-        if (config.createUseAsyncDataConnectors !== undefined) {
+        if (connectorsConfigured) {
+          generateConnectorsFlag = true;
+        } else if (config.createUseAsyncDataConnectors !== undefined) {
           generateConnectorsFlag = config.createUseAsyncDataConnectors;
+        } else if ((config.generators ?? []).includes('connectors')) {
+          generateConnectorsFlag = true;
         } else {
           generateConnectorsFlag = await promptConnectors();
         }
@@ -261,6 +272,7 @@ program
               outputDir: `${composablesOutputDir}/connectors`,
               composablesRelDir: '../use-async-data/composables',
               runtimeRelDir: '../../runtime',
+              connectorsConfig: config.connectors,
             });
             spinner.stop('✓ Generated headless UI connectors');
           } else {

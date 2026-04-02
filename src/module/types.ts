@@ -1,4 +1,4 @@
-import type { GeneratorConfig } from '../cli/config.js';
+import type { GeneratorConfig } from '../config/types.js';
 
 /**
  * Configuration options for the nuxt-openapi-hyperfetch Nuxt module.

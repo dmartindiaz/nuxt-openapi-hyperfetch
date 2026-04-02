@@ -7,6 +7,11 @@ import { generateUseAsyncDataComposables } from '../generators/use-async-data/ge
 import { generateNuxtServerRoutes } from '../generators/nuxt-server/generator.js';
 import { generateConnectors } from '../generators/connectors/generator.js';
 import { createConsoleLogger } from '../cli/logger.js';
+import {
+  ensureUseAsyncDataForConnectors,
+  isConnectorsRequested,
+  toRuntimeComposableGenerators,
+} from '../config/connectors.js';
 import type { ModuleOptions } from './types.js';
 
 export default defineNuxtModule<ModuleOptions>({
@@ -39,7 +44,11 @@ export default defineNuxtModule<ModuleOptions>({
     const resolvedInput = path.resolve(nuxt.options.rootDir, options.input);
     const resolvedOutput = path.resolve(nuxt.options.rootDir, options.output!);
     const composablesOutputDir = path.join(resolvedOutput, 'composables');
-    const selectedGenerators = options.generators ?? ['useFetch', 'useAsyncData'];
+    const connectorsRequested = isConnectorsRequested(options);
+    const selectedGenerators = ensureUseAsyncDataForConnectors(
+      toRuntimeComposableGenerators(options.generators ?? ['useFetch', 'useAsyncData']),
+      connectorsRequested
+    );
     const backend = options.backend ?? 'heyapi';
     const logger = createConsoleLogger();
 
@@ -103,7 +112,7 @@ export default defineNuxtModule<ModuleOptions>({
       }
 
       // 3. Generate headless connectors if requested (requires useAsyncData)
-      if (options.createUseAsyncDataConnectors && selectedGenerators.includes('useAsyncData')) {
+      if (connectorsRequested && selectedGenerators.includes('useAsyncData')) {
         const connectorsOutputDir = path.join(composablesOutputDir, 'connectors');
         await generateConnectors(
           {
@@ -111,6 +120,7 @@ export default defineNuxtModule<ModuleOptions>({
             outputDir: connectorsOutputDir,
             composablesRelDir: '../use-async-data/composables',
             runtimeRelDir: '../../runtime',
+            connectorsConfig: options.connectors,
           },
           logger
         );
@@ -142,7 +152,7 @@ export default defineNuxtModule<ModuleOptions>({
       if (selectedGenerators.includes('useAsyncData')) {
         addImportsDir(path.join(composablesOutputDir, 'use-async-data', 'composables'));
       }
-      if (options.createUseAsyncDataConnectors && selectedGenerators.includes('useAsyncData')) {
+      if (connectorsRequested && selectedGenerators.includes('useAsyncData')) {
         addImportsDir(path.join(composablesOutputDir, 'connectors'));
       }
     }

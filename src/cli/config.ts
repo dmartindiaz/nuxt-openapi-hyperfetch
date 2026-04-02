@@ -1,66 +1,37 @@
 import fs from 'fs-extra';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 import * as p from '@clack/prompts';
-import type { GeneratorBackend, ConfigGenerator } from './types.js';
+import type { GeneratorConfig, GeneratorType } from '../config/types.js';
 
 const { existsSync } = fs;
 
-/**
- * Configuration options for the generator
- */
-export interface GeneratorConfig {
-  /** Path or URL to OpenAPI specification */
-  input?: string;
-  /** Output directory for generated files */
-  output?: string;
-  /** Base URL for API requests */
-  baseUrl?: string;
-  /** Generation mode: client or server */
-  mode?: 'client' | 'server';
-  /** Generate only specific tags */
-  tags?: string[];
-  /** Exclude specific tags */
-  excludeTags?: string[];
-  /** Overwrite existing files without prompting */
-  overwrite?: boolean;
-  /** Preview changes without writing files */
-  dryRun?: boolean;
-  /** Enable verbose logging */
-  verbose?: boolean;
-  /** Watch mode - regenerate on file changes */
-  watch?: boolean;
-  /** Generator types to use */
-  generators?: ('useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors')[];
-  /** Server route path (for nuxtServer mode) */
-  serverRoutePath?: string;
-  /** Enable BFF pattern (for nuxtServer mode) */
-  enableBff?: boolean;
-  /** Generator backend: official (Java) or heyapi (Node.js) */
-  backend?: GeneratorBackend;
-  /**
-   * Generation engine to use.
-   * - 'openapi': @openapitools/openapi-generator-cli (requires Java 11+)
-   * - 'heyapi': @hey-api/openapi-ts (Node.js native, no Java required)
-   * When set, the CLI will not ask which engine to use.
-   */
-  generator?: ConfigGenerator;
-  /**
-   * Generate headless UI connector composables on top of useAsyncData.
-   * Connectors provide ready-made logic for tables, pagination, forms and delete actions.
-   * Requires useAsyncData to also be generated.
-   * @default false
-   */
-  createUseAsyncDataConnectors?: boolean;
+async function importConfigModule(configPath: string): Promise<unknown> {
+  try {
+    const module = await import(pathToFileURL(configPath).href);
+    return module.default || module;
+  } catch (error) {
+    if (!configPath.endsWith('.ts')) {
+      throw error;
+    }
+
+    const { createJiti } = await import('jiti');
+    const jiti = createJiti(import.meta.url, { interopDefault: true });
+    const module = jiti(configPath);
+    return module?.default || module;
+  }
 }
 
 /**
- * Load configuration from nxh.config.js, nuxt-openapi-generator.config.js, or package.json
+ * Load configuration from nxh.config.{ts,js,mjs}, nuxt-openapi-hyperfetch.{ts,js,mjs}, or package.json
  */
 export async function loadConfig(cwd: string = process.cwd()): Promise<GeneratorConfig | null> {
   // Try different config file names
   const configFiles = [
+    'nxh.config.ts',
     'nxh.config.js',
     'nxh.config.mjs',
+    'nuxt-openapi-hyperfetch.ts',
     'nuxt-openapi-hyperfetch.js',
     'nuxt-openapi-hyperfetch.mjs',
   ];
@@ -69,11 +40,8 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Generator
     const configPath = join(cwd, configFile);
     if (existsSync(configPath)) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const config = await import(`file://${configPath}`);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-        const exportedConfig = config.default || config;
-        return exportedConfig as GeneratorConfig;
+        const config = await importConfigModule(configPath);
+        return config as GeneratorConfig;
       } catch (error) {
         p.log.warn(`Failed to load config from ${configFile}: ${String(error)}`);
       }
@@ -134,14 +102,12 @@ export function parseTags(tagsString?: string): string[] | undefined {
 /**
  * Parse generators string into array
  */
-export function parseGenerators(
-  generatorsString?: string
-): ('useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors')[] | undefined {
+export function parseGenerators(generatorsString?: string): GeneratorType[] | undefined {
   if (!generatorsString) {
     return undefined;
   }
   const parts = generatorsString.split(',').map((g) => g.trim());
-  return parts.filter((g): g is 'useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors' =>
+  return parts.filter((g): g is GeneratorType =>
     ['useFetch', 'useAsyncData', 'nuxtServer', 'connectors'].includes(g)
   );
 }
