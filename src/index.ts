@@ -16,6 +16,7 @@ import {
   promptConnectors,
 } from './cli/prompts.js';
 import { MESSAGES } from './cli/messages.js';
+import { displayLogo } from './cli/logo.js';
 import {
   loadConfig,
   mergeConfig,
@@ -24,12 +25,7 @@ import {
   normalizeGenerators,
   type ComposableGeneratorType,
 } from './cli/config.js';
-import {
-  ensureUseAsyncDataForConnectors,
-  hasConnectorsConfig,
-  isConnectorsRequested,
-  toRuntimeComposableGenerators,
-} from './config/connectors.js';
+import { hasConnectorsConfig } from './config/connectors.js';
 
 const program = new Command();
 
@@ -141,7 +137,6 @@ program
       // 1. Determine composables to generate FIRST
       let composables: ComposableGeneratorType[];
       let generateConnectorsFlag = false;
-      const connectorsRequested = isConnectorsRequested(config);
       const connectorsConfigured = hasConnectorsConfig(config.connectors);
 
       if (config.generators) {
