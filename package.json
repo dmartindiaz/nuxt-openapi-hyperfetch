@@ -1,7 +1,7 @@
 {
   "name": "nuxt-openapi-hyperfetch",
-  "version": "1.0.3",
-  "description": "⚡ Nuxt generator OpenAPI useFetch, useAsyncData, Nuxt server & Headless UI connectors",
+  "version": "1.0.4",
+  "description": "⚡ OpenAPI to Nuxt code generator for useFetch, useAsyncData, server routes, and headless CRUD connectors.",
   "type": "module",
   "author": "",
   "license": "Apache-2.0",
@@ -93,16 +93,21 @@
   },
   "keywords": [
     "openapi",
-    "openapi-generator",
+    "generator",
     "nuxt",
-    "nuxt-module",
+    "rest",
+    "composables",
+    "swagger",
+    "fetch",
+    "$fetch",
     "useFetch",
     "useAsyncData",
-    "api-client",
+    "api",
+    "open",
     "codegen",
-    "server-routes",
-    "nitro",
-    "rest-api",
+    "server",
+    "node",
+    "headless",
     "sdk"
   ]
 }
