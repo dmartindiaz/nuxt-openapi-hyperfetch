@@ -1,6 +1,6 @@
 {
   "name": "nuxt-openapi-hyperfetch",
-  "version": "1.0.4",
+  "version": "3.0.4",
   "description": "⚡ OpenAPI to Nuxt code generator for useFetch, useAsyncData, server routes, and headless CRUD connectors.",
   "type": "module",
   "author": "",
