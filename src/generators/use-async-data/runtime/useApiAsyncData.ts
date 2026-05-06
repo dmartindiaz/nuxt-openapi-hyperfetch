@@ -4,7 +4,8 @@
  * It requires Nuxt 3 to be installed in the target project
  */
 import { watch, ref, computed } from 'vue';
-import type { UseFetchOptions } from '#app';
+import type { ComputedRef } from 'vue';
+import type { AsyncData, UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
   getGlobalBaseUrl,
@@ -56,6 +57,40 @@ type InferData<T, Options> = Options extends { transform: (...args: any) => infe
   ? R
   : PickedData<T, InferPick<Options>>;
 
+type ApiAsyncDataResult<DataT> = AsyncData<DataT | null, unknown> &
+  Promise<AsyncData<DataT | null, unknown>>;
+
+type ApiAsyncDataPagination = {
+  pagination: ComputedRef<
+    PaginationState & {
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+      goToPage: (page: number) => void;
+      nextPage: () => void;
+      prevPage: () => void;
+      setPerPage: (pageSize: number) => void;
+    }
+  >;
+};
+
+type ApiAsyncDataReturnOptions = {
+  paginated?: boolean;
+  pick?: PickInput;
+  transform?: (...args: any[]) => any;
+  watch?: boolean;
+};
+
+type UseApiAsyncDataOptionsConstraint<T> = Omit<BaseApiRequestOptions<T>, 'transform' | 'pick'> &
+  Omit<UseFetchOptions<T, any>, 'transform' | 'pick' | 'watch'> &
+  ApiAsyncDataReturnOptions;
+
+export type UseApiAsyncDataReturn<
+  T,
+  Options extends ApiAsyncDataReturnOptions,
+> = Options extends { paginated: true }
+  ? ApiAsyncDataResult<InferData<T, Options>> & ApiAsyncDataPagination
+  : ApiAsyncDataResult<InferData<T, Options>>;
+
 /**
  * Options for useAsyncData API requests with lifecycle callbacks.
  * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
@@ -88,12 +123,12 @@ export type ApiAsyncDataOptions<
  */
 export function useApiAsyncData<
   T,
-  Options extends ApiAsyncDataOptions<T, any, any> = ApiAsyncDataOptions<T>,
+  Options extends UseApiAsyncDataOptionsConstraint<T> = ApiAsyncDataOptions<T>,
 >(
   key: string,
   url: string | (() => string),
   options?: Options
-) {
+): UseApiAsyncDataReturn<T, Options> {
   const {
     method = 'GET',
     body,
@@ -342,7 +377,7 @@ export function useApiAsyncData<
     watch: effectiveWatchOption === false ? [] : watchSources,
   });
 
-  if (!paginated) return result;
+  if (!paginated) return result as UseApiAsyncDataReturn<T, Options>;
 
   // Pagination computed helpers
   const hasNextPage = computed(() => paginationState.value.currentPage < paginationState.value.totalPages);
@@ -364,5 +399,5 @@ export function useApiAsyncData<
       prevPage,
       setPerPage,
     })),
-  };
+  } as UseApiAsyncDataReturn<T, Options>;
 }

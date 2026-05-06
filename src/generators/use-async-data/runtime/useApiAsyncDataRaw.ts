@@ -6,7 +6,8 @@
  * RAW VERSION: Returns full response including headers, status, and statusText
  */
 import { ref, computed } from 'vue';
-import type { UseFetchOptions } from '#app';
+import type { ComputedRef } from 'vue';
+import type { AsyncData, UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
   getGlobalBaseUrl,
@@ -59,6 +60,40 @@ type PickedData<T, K extends PickInput> = K extends ReadonlyArray<string>
     : Pick<T, Extract<K[number], keyof T>>
   : T;
 
+type ApiAsyncDataRawResult<DataT> = AsyncData<RawResponse<DataT> | null, unknown> &
+  Promise<AsyncData<RawResponse<DataT> | null, unknown>>;
+
+type ApiAsyncDataRawPagination = {
+  pagination: ComputedRef<
+    PaginationState & {
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+      goToPage: (page: number) => void;
+      nextPage: () => void;
+      prevPage: () => void;
+      setPerPage: (pageSize: number) => void;
+    }
+  >;
+};
+
+type ApiAsyncDataRawReturnOptions = {
+  paginated?: boolean;
+  pick?: PickInput;
+  transform?: (...args: any[]) => any;
+};
+
+type UseApiAsyncDataRawOptionsConstraint<T> = Omit<BaseApiRequestOptions<T>, 'onSuccess' | 'transform' | 'pick'> &
+  Omit<UseFetchOptions<T, any>, 'transform' | 'pick' | 'onSuccess'> &
+  ApiAsyncDataRawReturnOptions;
+
+export type UseApiAsyncDataRawReturn<
+  T,
+  DataT,
+  Options extends ApiAsyncDataRawReturnOptions,
+> = Options extends { paginated: true }
+  ? ApiAsyncDataRawResult<DataT> & ApiAsyncDataRawPagination
+  : ApiAsyncDataRawResult<DataT>;
+
 /**
  * Options for useAsyncData Raw API requests.
  * Extends all native Nuxt useFetch options plus our custom callbacks, transform, and pick.
@@ -97,12 +132,12 @@ export function useApiAsyncDataRaw<
   T,
   DataT = T,
   PickT extends PickInput = undefined,
-  Options extends ApiAsyncDataRawOptions<T, DataT, PickT> = ApiAsyncDataRawOptions<T, DataT, PickT>,
+  Options extends UseApiAsyncDataRawOptionsConstraint<T> = ApiAsyncDataRawOptions<T, DataT, PickT>,
 >(
   key: string,
   url: string | (() => string),
   options?: Options
-) {
+): UseApiAsyncDataRawReturn<T, DataT, Options> {
   const {
     method = 'GET',
     body,
@@ -320,7 +355,7 @@ export function useApiAsyncDataRaw<
     watch: watchSources.length > 0 ? watchSources : undefined,
   });
 
-  if (!paginated) return result;
+  if (!paginated) return result as UseApiAsyncDataRawReturn<T, DataT, Options>;
 
   // Pagination computed helpers
   const hasNextPage = computed(() => paginationState.value.currentPage < paginationState.value.totalPages);
@@ -342,5 +377,5 @@ export function useApiAsyncDataRaw<
       prevPage,
       setPerPage,
     })),
-  };
+  } as UseApiAsyncDataRawReturn<T, DataT, Options>;
 }

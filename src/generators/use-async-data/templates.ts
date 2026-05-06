@@ -116,9 +116,9 @@ function generateImports(method: MethodInfo, apiImportPath: string, isRaw: boole
 
   // Import runtime helper (normal or raw)
   if (isRaw) {
-    imports += `import { useApiAsyncDataRaw, type ApiAsyncDataRawOptions, type RawResponse } from '../runtime/useApiAsyncDataRaw';`;
+    imports += `import { useApiAsyncDataRaw, type ApiAsyncDataRawOptions, type RawResponse, type UseApiAsyncDataRawReturn } from '../runtime/useApiAsyncDataRaw';`;
   } else {
-    imports += `import { useApiAsyncData, type ApiAsyncDataOptions } from '../runtime/useApiAsyncData';`;
+    imports += `import { useApiAsyncData, type ApiAsyncDataOptions, type UseApiAsyncDataReturn } from '../runtime/useApiAsyncData';`;
   }
 
   // Vue imports needed by the generated function body
@@ -152,10 +152,7 @@ function generateFunctionBody(
   const optionsType = isRaw
     ? `ApiAsyncDataRawOptions<${responseType}, DataT, PickT>`
     : `ApiAsyncDataOptions<${responseType}, DataT, PickT>`;
-  const optionsDefaultType = isRaw
-    ? `ApiAsyncDataRawOptions<${responseType}, DataT, PickT>`
-    : `ApiAsyncDataOptions<${responseType}, DataT, PickT>`;
-  const optionsArg = `options?: Options`;
+  const optionsArg = `options?: ${optionsType}`;
   const args = hasParams ? `${paramsArg}, ${optionsArg}` : optionsArg;
 
   // Generate unique key for useAsyncData
@@ -173,11 +170,11 @@ function generateFunctionBody(
   // Choose the correct wrapper function
   const wrapperFunction = isRaw ? 'useApiAsyncDataRaw' : 'useApiAsyncData';
   const wrapperCall = isRaw
-    ? `${wrapperFunction}<${responseType}, DataT, PickT, Options>`
-    : `${wrapperFunction}<${responseType}, Options>`;
+    ? `${wrapperFunction}<${responseType}, DataT, PickT, ${optionsType}>`
+    : `${wrapperFunction}<${responseType}, ${optionsType}>`;
   const returnType = isRaw
-    ? `ReturnType<typeof ${wrapperFunction}<${responseType}, DataT, PickT, Options>>`
-    : `ReturnType<typeof ${wrapperFunction}<${responseType}, Options>>`;
+    ? `UseApiAsyncDataRawReturn<${responseType}, DataT, ${optionsType}>`
+    : `UseApiAsyncDataReturn<${responseType}, ${optionsType}>`;
 
   const pInit = hasParams ? `\n  const p = isRef(params) ? params : shallowRef(params)` : '';
 
@@ -185,7 +182,7 @@ function generateFunctionBody(
     ? `  const _hasKey = typeof args[0] === 'string'\n  const params = _hasKey ? args[1] : args[0]\n  const options = _hasKey ? { cacheKey: args[0], ...args[2] } : args[1]`
     : `  const _hasKey = typeof args[0] === 'string'\n  const options = _hasKey ? { cacheKey: args[0], ...args[1] } : args[0]`;
 
-  const genericTypeParams = `<\n  DataT = ${responseType},\n  PickT extends ReadonlyArray<string> | undefined = undefined,\n  Options extends ${optionsType} = ${optionsDefaultType}\n>`;
+  const genericTypeParams = `<\n  DataT = ${responseType},\n  PickT extends ReadonlyArray<string> | undefined = undefined\n>`;
 
   const refParamsStr = hasParams
     ? `params: Ref<${method.requestType}> | ComputedRef<${method.requestType}>, ${optionsArg}`
@@ -195,7 +192,7 @@ function generateFunctionBody(
     ? `\nexport function ${composableName}${genericTypeParams}(${refParamsStr}): ${returnType}\nexport function ${composableName}${genericTypeParams}(key: string, ${refParamsStr}): ${returnType}`
     : '';
 
-  return `${description}export function ${composableName}${genericTypeParams}(${args}): ${returnType}\nexport function ${composableName}${genericTypeParams}(key: string, ${args}): ${returnType}${refOverloads}\nexport function ${composableName}(...args: any[]) {\n${argsExtraction}${pInit}\n  return ${wrapperCall}(${key}, ${url}, ${fetchOptions})\n}`;
+  return `${description}export function ${composableName}${genericTypeParams}(${args}): ${returnType}\nexport function ${composableName}${genericTypeParams}(key: string, ${args}): ${returnType}${refOverloads}\nexport function ${composableName}${genericTypeParams}(...args: any[]) {\n${argsExtraction}${pInit}\n  return ${wrapperCall}(${key}, ${url}, ${fetchOptions})\n}`;
 }
 
 /**

@@ -15,7 +15,6 @@ function generateFileHeader(): string {
  */
 
 /* eslint-disable */
-// @ts-nocheck
 `;
 }
 
@@ -101,12 +100,25 @@ function generateImports(method: MethodInfo, apiImportPath: string): string {
   }
 
   // Import runtime helper
-  imports += `import { useApiRequest, type ApiRequestOptions } from '../runtime/useApiRequest';`;
+  imports += `import { useApiRequest, type ApiRequestOptions, type UseApiRequestReturn } from '../runtime/useApiRequest';`;
+
+  // Vue imports needed by the generated function body
+  const vueImports: string[] = [];
+  if (method.requestType) {
+    vueImports.push('shallowRef');
+    vueImports.push('isRef');
+  }
+  if (method.hasBody || method.hasQueryParams || method.pathParams.length > 0) {
+    vueImports.push('computed');
+  }
+  const vueTypeImports = method.requestType ? ['Ref', 'ComputedRef'] : [];
+  const allVueImports = [
+    ...vueImports,
+    ...vueTypeImports.map((typeName) => `type ${typeName}`),
+  ].join(', ');
+  imports += `\nimport { ${allVueImports} } from 'vue';`;
 
   return imports;
-}
-
-/**
 }
 
 /**
@@ -114,11 +126,9 @@ function generateImports(method: MethodInfo, apiImportPath: string): string {
  */
 function generateFunctionBody(method: MethodInfo, options?: GenerateOptions): string {
   const hasParams = !!method.requestType;
-  const paramsArg = hasParams ? `params: ${method.requestType}` : '';
   const responseType = method.responseType !== 'void' ? method.responseType : 'void';
   const optionsType = `ApiRequestOptions<${responseType}, DataT, PickT>`;
-  const optionsArg = `options?: Options`;
-  const args = hasParams ? `${paramsArg}, ${optionsArg}` : optionsArg;
+  const optionsArg = `options?: ${optionsType}`;
 
   const url = generateUrl(method);
   const fetchOptions = generateFetchOptions(method, options);
@@ -127,12 +137,30 @@ function generateFunctionBody(method: MethodInfo, options?: GenerateOptions): st
 
   const pInit = hasParams ? `\n  const p = isRef(params) ? params : shallowRef(params)` : '';
 
-  return `${description}export const ${method.composableName} = <
+  const genericTypeParams = `<
   DataT = ${responseType},
-  PickT extends ReadonlyArray<string> | undefined = undefined,
-  Options extends ${optionsType} = ApiRequestOptions<${responseType}, DataT, PickT>
->(${args}) => {${pInit}
-  return useApiRequest<${responseType}, Options>(${url}, ${fetchOptions})
+  PickT extends ReadonlyArray<string> | undefined = undefined
+>`;
+
+  const returnType = `UseApiRequestReturn<${responseType}, ${optionsType}>`;
+
+  if (!hasParams) {
+    return `${description}export function ${method.composableName}${genericTypeParams}(${optionsArg}): ${returnType}
+export function ${method.composableName}${genericTypeParams}(${optionsArg}) {
+  return useApiRequest<${responseType}, ${optionsType}>(${url}, ${fetchOptions})
+}`;
+  }
+
+  const directParams = `params: ${method.requestType}`;
+  const refParams = `params: Ref<${method.requestType}> | ComputedRef<${method.requestType}>`;
+
+  return `${description}export function ${method.composableName}${genericTypeParams}(${directParams}, ${optionsArg}): ${returnType}
+export function ${method.composableName}${genericTypeParams}(${refParams}, ${optionsArg}): ${returnType}
+export function ${method.composableName}${genericTypeParams}(
+  params: ${method.requestType} | Ref<${method.requestType}> | ComputedRef<${method.requestType}>,
+  ${optionsArg}
+): ${returnType} {${pInit}
+  return useApiRequest<${responseType}, ${optionsType}>(${url}, ${fetchOptions})
 }`;
 }
 

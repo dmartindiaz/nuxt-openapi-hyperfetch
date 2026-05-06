@@ -4,7 +4,8 @@
  * It requires Nuxt 3 to be installed in the target project
  */
 import { watch, ref, computed } from 'vue';
-import type { UseFetchOptions } from '#app';
+import type { ComputedRef, Ref } from 'vue';
+import type { AsyncData, UseFetchOptions } from '#app';
 import {
   getGlobalHeaders,
   getGlobalBaseUrl,
@@ -55,6 +56,44 @@ type InferPick<Options> = Options extends { pick: infer K extends ReadonlyArray<
 type InferData<T, Options> = Options extends { transform: (...args: any) => infer R }
   ? R
   : PickedData<T, InferPick<Options>>;
+
+type ApiRequestAsyncData<DataT> = AsyncData<DataT | null, unknown>;
+
+export type UseApiRequestResult<DataT> = ApiRequestAsyncData<DataT> &
+  Promise<ApiRequestAsyncData<DataT>>;
+
+type ApiRequestPagination<DataT> = {
+  pagination: ComputedRef<
+    PaginationState & {
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    }
+  >;
+  goToPage: (page: number) => void;
+  nextPage: () => void;
+  prevPage: () => void;
+  setPerPage: (pageSize: number) => void;
+};
+
+export type PaginatedUseApiRequestResult<DataT> = UseApiRequestResult<DataT> &
+  ApiRequestPagination<DataT>;
+
+type ApiRequestReturnOptions = {
+  paginated?: boolean;
+  pick?: PickInput;
+  transform?: (...args: any[]) => any;
+};
+
+type UseApiRequestOptionsConstraint<T> = Omit<BaseApiRequestOptions<T>, 'transform' | 'pick'> &
+  Omit<UseFetchOptions<T, any>, 'transform' | 'pick'> &
+  ApiRequestReturnOptions;
+
+export type UseApiRequestReturn<
+  T,
+  Options extends ApiRequestReturnOptions,
+> = Options extends { paginated: true }
+  ? PaginatedUseApiRequestResult<InferData<T, Options>>
+  : UseApiRequestResult<InferData<T, Options>>;
 
 /**
  * Options for useFetch API requests with lifecycle callbacks.
@@ -109,11 +148,11 @@ export type ApiRequestOptions<
  */
 export function useApiRequest<
   T = any,
-  Options extends ApiRequestOptions<T, any, any> = ApiRequestOptions<T>,
+  Options extends UseApiRequestOptionsConstraint<T> = ApiRequestOptions<T>,
 >(
   url: string | (() => string),
   options?: Options
-) {
+): UseApiRequestReturn<T, Options> {
   const {
     onRequest,
     onSuccess,
@@ -344,12 +383,11 @@ export function useApiRequest<
   );
 
   // Return result with transformed data and optional pagination
-  const baseResult = {
-    ...result,
-    data: transformedData as Ref<TransformedType | null>,
-  };
+  const baseResult = Object.assign(result, {
+    data: transformedData as typeof result.data,
+  }) as UseApiRequestResult<TransformedType>;
 
-  if (!paginated) return baseResult;
+  if (!paginated) return baseResult as UseApiRequestReturn<T, Options>;
 
   // Pagination computed helpers
   const hasNextPage = computed(() => paginationState.value.currentPage < paginationState.value.totalPages);
@@ -369,8 +407,7 @@ export function useApiRequest<
     errorExecuted = false;
   };
 
-  return {
-    ...baseResult,
+  return Object.assign(baseResult, {
     pagination: computed(() => ({
       ...paginationState.value,
       hasNextPage: hasNextPage.value,
@@ -380,5 +417,5 @@ export function useApiRequest<
     nextPage,
     prevPage,
     setPerPage,
-  };
+  }) as UseApiRequestReturn<T, Options>;
 }
