@@ -68,7 +68,7 @@ export interface OpenApiOperation {
     }
   >;
   /** Developer override — detected intent for this endpoint */
-  'x-nxh-intent'?: Intent;
+  'x-openapi-intent'?: Intent;
 }
 
 export interface OpenApiPathItem {

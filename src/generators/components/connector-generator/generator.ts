@@ -9,7 +9,7 @@ import {
   generateConnectorIndexFile,
 } from './templates.js';
 import type { ConnectorGeneratorOptions } from './types.js';
-import { type Logger, createClackLogger } from '../../../cli/logger.js';
+import { type Logger, createConsoleLogger } from '../../../utils/logger.js';
 
 // Runtime files that must be copied to the user's project
 const RUNTIME_FILES = [
@@ -45,7 +45,7 @@ async function formatCode(code: string, logger: Logger): Promise<string> {
  */
 export async function generateConnectors(
   options: ConnectorGeneratorOptions,
-  logger: Logger = createClackLogger()
+  logger: Logger = createConsoleLogger()
 ): Promise<void> {
   const spinner = logger.spinner();
 

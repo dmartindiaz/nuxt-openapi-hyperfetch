@@ -10,7 +10,7 @@ import {
   type GenerateOptions,
 } from './templates.js';
 import type { MethodInfo } from './types.js';
-import { type Logger, createClackLogger } from '../../cli/logger.js';
+import { type Logger, createConsoleLogger } from '../../utils/logger.js';
 
 /**
  * Main function to generate useAsyncData composables
@@ -19,7 +19,7 @@ export async function generateUseAsyncDataComposables(
   inputDir: string,
   outputDir: string,
   options?: GenerateOptions,
-  logger: Logger = createClackLogger()
+  logger: Logger = createConsoleLogger()
 ): Promise<void> {
   const mainSpinner = logger.spinner();
 

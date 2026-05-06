@@ -17,9 +17,7 @@ export interface ConnectorsConfig {
   resources?: Record<string, ConnectorResourceConfig>;
 }
 
-/**
- * Shared configuration contract used by both CLI (nxh.config.*) and Nuxt module (nuxt.config.ts).
- */
+/** Shared configuration contract used by the generated OpenAPI module flow. */
 export interface GeneratorConfig {
   /** Path or URL to OpenAPI specification */
   input?: string;
@@ -33,8 +31,6 @@ export interface GeneratorConfig {
   tags?: string[];
   /** Exclude specific tags */
   excludeTags?: string[];
-  /** Overwrite existing files without prompting */
-  overwrite?: boolean;
   /** Preview changes without writing files */
   dryRun?: boolean;
   /** Enable verbose logging */

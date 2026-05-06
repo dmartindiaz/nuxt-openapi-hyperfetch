@@ -18,6 +18,10 @@
 !src/
 !src/**
 
+# --- Keep: Development scripts ---
+!scripts/
+!scripts/**
+
 # --- Keep: Documentation (from package.json "files") ---
 !docs/
 !docs/**

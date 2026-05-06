@@ -1,364 +1,232 @@
-﻿<p align="center">
+<p align="center">
   <img src="https://raw.githubusercontent.com/dmartindiaz/nuxt-openapi-hyperfetch/main/public/nuxt-openapi-hyperfetch-logo.png" alt="Nuxt OpenAPI Hyperfetch logo" width="260" />
 </p>
 
 <p align="center">
-  <strong>Generate type-safe CRUD composables from your OpenAPI spec.</strong><br/>
-  One command. Full TypeScript. SSR-ready.
+  <strong>Nuxt-only OpenAPI generation.</strong><br/>
+  Configure one module and generate a typed OpenAPI client, Nuxt composables, optional server routes, and headless connectors.
 </p>
 
 <p align="center">
-  <a href="https://nuxt-openapi-hyperfetch.netlify.app/">📖 Documentation</a> ·
-  <a href="#ready-to-use-usefetch-and-useasyncdata-composables">useFetch & useAsyncData</a> ·
-  <a href="#ready-to-use-nuxt-server-routes">Nuxt Server</a> ·
-  <a href="#connectors">Headless UI Connectors</a> ·
+  <a href="https://nuxt-openapi-hyperfetch.netlify.app/">Documentation</a> ·
   <a href="#installation">Installation</a> ·
-  <a href="#quick-start">Quick Start</a>
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#generators">Generators</a> ·
+  <a href="#contributing">Contributing</a>
 </p>
 
 ---
 
 ## Installation
 
+Install the module in your Nuxt project.
+
 ```bash
-# Global CLI
-npm install -g nuxt-openapi-hyperfetch
-
-# Or as a Nuxt module (dev dependency)
-npm install -D nuxt-openapi-hyperfetch
+npm install nuxt-openapi-hyperfetch zod
 ```
 
----
+Peer dependencies:
 
-## What it does
+- Nuxt 3 or 4
+- `@nuxt/kit`
+- `zod`
 
-Point it at an OpenAPI spec, pick an output folder, run one command. You get four kinds of output:
+## What It Generates
 
-- **`useFetch` composables** — one per endpoint, reactive, bound to template lifecycle
-- **`useAsyncData` composables** — SSR-compatible, awaitable, ideal for page-level data
-- **Nuxt Server Routes** — generated proxy endpoints that keep API keys server-side
-- **Connectors** — headless UI composables (one per resource tag) that combine list, detail, create, update, and delete into a single import — with Zod validation, modal state, reactive params, and pagination built in
+The module uses an OpenAPI document as input and generates a layered output.
 
-All output is 100% Nuxt-native. No runtime dependencies in the generated code.
+Base output under `openapi/`:
 
----
+- typed SDK functions
+- generated OpenAPI types
+- generated client files and barrel exports
 
-## Ready to use: `useFetch` and `useAsyncData` composables
+Optional higher-level layers:
 
-One composable per endpoint, for when you need direct control:
+- `useFetch` composables
+- `useAsyncData` composables
+- `nuxtServer` Nitro routes
+- headless CRUD connectors
 
-```ts
-// useFetch — reactive, bound to template lifecycle
-const { data: pet, pending, error } = useFetchGetPetById({ petId: 123 });
+Default generated root:
 
-// useAsyncData — SSR-compatible, awaitable
-const { data: pets } = await useAsyncDataFindPets({ status: 'available' });
+```text
+openapi/
+  index.ts
+  sdk.gen.ts
+  types.gen.ts
+  client.gen.ts
+  client/
+  core/
+  composables/
 ```
 
-With callbacks and request modification:
-
-```ts
-// useFetch — onRequest receives ctx and must return modifications
-const { data } = useFetchFindPets(
-  { status: 'available' },
-  {
-    onRequest: (ctx) => {
-      // ctx: { url, method, headers, query, body }
-      return { headers: { 'X-Source': 'pets-page' } };
-    },
-    onSuccess: (pets) => console.log(`${pets.length} pets loaded`),
-    onError: (err) => console.error(err.message),
-    onFinish: ({ success }) => console.log('Done:', success),
-  }
-);
-
-// useAsyncData — onSuccess and onError receive a second context argument
-const { data: pets } = await useAsyncDataFindPets(
-  { status: 'available' },
-  {
-    onRequest: (ctx) => ({ headers: { 'X-Source': 'pets-page' } }),
-    onSuccess: (pets, ctx) => console.log(`${pets.length} from ${ctx.url}`),
-    onError: (err, ctx) => console.error(err.message, ctx.url),
-  }
-);
-```
-
----
-
-## Ready to use: Nuxt Server Routes
-
-Proxy endpoints to keep API keys server-side:
-
-```
-Client → Nuxt Server Route (generated) → External API
-```
-
-```ts
-// Works automatically after generation
-const { data } = useFetch('/api/pet/123');
-```
-
----
-
-## Connectors
-
-A connector exposes five sub-composables for one resource. For a `pet` tag in your spec:
-
-```ts
-const { getAll, get, create, update, del } = usePetsConnector();
-```
-
-### Full CRUD page in one component
-
-```vue
-<script setup lang="ts">
-const { getAll, create, update, del } = usePetsConnector();
-
-// Reload the list after every mutation
-create.onSuccess(() => getAll.load());
-update.onSuccess(() => getAll.load());
-del.onSuccess(() => getAll.load());
-</script>
-
-<template>
-  <!-- List -->
-  <UTable
-    :columns="getAll.columns.value"
-    :rows="getAll.items.value"
-    :loading="getAll.loading.value"
-  >
-    <template #actions-data="{ row }">
-      <UButton @click="update.ui.open(row)">Edit</UButton>
-      <UButton color="red" @click="del.ui.open(row)">Delete</UButton>
-    </template>
-  </UTable>
-
-  <!-- Create -->
-  <UButton @click="create.ui.open()">Add pet</UButton>
-  <UModal v-model:open="create.ui.isOpen.value">
-    <UCard>
-      <UFormField label="Name" :error="create.errors.value.name?.[0]">
-        <UInput v-model="create.model.value.name" />
-      </UFormField>
-      <UFormField label="Status">
-        <USelect v-model="create.model.value.status" :options="['available', 'pending', 'sold']" />
-      </UFormField>
-      <template #footer>
-        <UButton :loading="create.loading.value" @click="create.execute()">Save</UButton>
-      </template>
-    </UCard>
-  </UModal>
-
-  <!-- Edit -->
-  <UModal v-model:open="update.ui.isOpen.value">
-    <UCard>
-      <UInput v-model="update.model.value.name" />
-      <template #footer>
-        <UButton :loading="update.loading.value" @click="update.execute(update.model.value.id)"
-          >Save changes</UButton
-        >
-      </template>
-    </UCard>
-  </UModal>
-
-  <!-- Delete confirmation -->
-  <UModal v-model:open="del.ui.isOpen.value">
-    <UCard>
-      <p>
-        Delete <strong>{{ del.staged.value?.name }}</strong
-        >?
-      </p>
-      <template #footer>
-        <UButton color="red" :loading="del.loading.value" @click="del.execute()">Delete</UButton>
-        <UButton variant="outline" @click="del.ui.close()">Cancel</UButton>
-      </template>
-    </UCard>
-  </UModal>
-</template>
-```
-
-### What each sub-connector provides
-
-| Key      | Transport      | What you get                                                               |
-| -------- | -------------- | -------------------------------------------------------------------------- |
-| `getAll` | `useAsyncData` | `items`, `columns`, `loading`, `error`, `pagination`, `selected`, `load()` |
-| `get`    | `$fetch`       | `data`, `loading`, `error`, `load(id)`, `clear()`                          |
-| `create` | `$fetch`       | `model`, `errors`, `isValid`, `execute()`, `reset()`, `ui.open/close`      |
-| `update` | `$fetch`       | Same as create + `load(id)`, `ui.open(row)`, `targetId`                    |
-| `del`    | `$fetch`       | `staged`, `hasStaged`, `execute()`, `ui.open(item)/close`                  |
-
-### Reactive list parameters
-
-```ts
-const status = ref('available');
-
-// Re-fetches automatically when status changes
-const { getAll } = usePetsConnector(() => ({ status: status.value }));
-```
-
-### Zod validation, out of the box
-
-Schemas are generated from your OpenAPI `requestBody`. `create.execute()` validates before sending — the network call is never made if the data is invalid.
-
-```ts
-// Extend the generated schema for extra rules
-const { create } = usePetsConnector(
-  {},
-  {
-    createSchema: (base) =>
-      base.extend({
-        name: z.string().min(2, 'At least 2 characters'),
-      }),
-  }
-);
-```
-
-### Global callbacks
-
-Register once, applies to every API call in the app:
-
-```ts
-// plugins/api-callbacks.plugin.ts
-defineGlobalApiCallbacks([
-  {
-    onRequest: (ctx) => ({
-      headers: { Authorization: `Bearer ${useAuthStore().token}` },
-    }),
-    onError: (err) => useToast().add({ title: err.message, color: 'red' }),
-  },
-]);
-```
-
-Connector-level and per-operation callbacks are also available — see [Callbacks docs](./docs/connectors/callbacks.md).
-
----
+When `nuxtServer` is enabled, route handlers are generated outside `openapi/`, under `server/routes/api` by default.
 
 ## Quick Start
 
-### CLI
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dmartindiaz/nuxt-openapi-hyperfetch/main/public/nuxt-openapi-hyperfetch-cli.png" alt="Nuxt OpenAPI Hyperfetch CLI" width="720" />
-</p>
-
-```bash
-nxh generate
-# or with arguments:
-nxh generate -i ./swagger.yaml -o ./openapi
-```
-
-The CLI asks for your spec path, output folder, and which generators to run.
-
-### Generators semantics (CLI + config)
-
-`generators` now supports `connectors` as a declarative option.
-
-- `['connectors']` → generates `useAsyncData` + `connectors`
-- `['useAsyncData']` → generates only `useAsyncData`
-- `['useAsyncData', 'connectors']` → generates both
-
-`createUseAsyncDataConnectors` is still supported for backward compatibility, but `generators: ['connectors']` is the recommended setup.
-
-### Typed `nxh.config.ts`
-
-The CLI now supports `nxh.config.ts` (besides `.js`/`.mjs`).
-
-```ts
-// nxh.config.ts
-import type { GeneratorConfig } from 'nuxt-openapi-hyperfetch';
-
-const config: GeneratorConfig = {
-  input: './swagger.yaml',
-  output: './openapi',
-  generators: ['useAsyncData', 'connectors'],
-  connectors: {
-    strategy: 'hybrid',
-    resources: {
-      pets: {
-        operations: {
-          getAll: { operationId: 'findPetsByStatus' },
-          get: { path: '/pet/{petId}' },
-        },
-      },
-      featuredPets: {
-        operations: {
-          getAll: { operationId: 'findPetsByTags' },
-          get: { operationId: 'getPetById' },
-        },
-      },
-    },
-  },
-};
-
-export default config;
-```
-
-`connectors.strategy` supports:
-
-- `manual`: generate only resources defined by the user
-- `hybrid`: start from inferred resources and apply user overrides/custom resources
-
-### Nuxt module
+Register the module and point it to your OpenAPI file.
 
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
   modules: ['nuxt-openapi-hyperfetch'],
 
-  openApiHyperFetch: {
+  openapi: {
     input: './swagger.yaml',
     output: './openapi',
-    generators: ['useFetch', 'connectors', 'nuxtServer'],
+    generators: ['useFetch', 'useAsyncData'],
     enableAutoImport: true,
   },
-});
+})
 ```
 
-### Configure the base URL
+Then start Nuxt normally:
+
+```bash
+npm run dev
+```
+
+Generation runs during the Nuxt build lifecycle.
+
+Current module defaults:
+
+- `output: './openapi'`
+- `generators: ['useFetch', 'useAsyncData']`
+- `enableDevBuild: true`
+- `enableProductionBuild: true`
+- `enableAutoGeneration: false`
+- `enableAutoImport: true`
+
+## Generated Composables
+
+Generated names follow the OpenAPI `operationId`.
+
+Example with `useAsyncData`:
+
+```vue
+<script setup lang="ts">
+const { data: pet, error } = await useAsyncDataGetPetById({
+  path: {
+    petId: 123,
+  },
+})
+</script>
+
+<template>
+  <div v-if="error">Request failed</div>
+  <div v-else>{{ pet?.name }}</div>
+</template>
+```
+
+If you enable `useFetch`, the module also generates the parallel `openapi/composables/use-fetch/` tree.
+
+## Generators
+
+Generators are additive. Choose the smallest set that matches your app.
+
+| Generator | Output | Use it for |
+| --------- | ------ | ---------- |
+| `useFetch` | `openapi/composables/use-fetch/` | straightforward component-level requests |
+| `useAsyncData` | `openapi/composables/use-async-data/` | async flows, cache keys, raw variants, connector foundation |
+| `nuxtServer` | `server/routes/api/` by default | server-owned API access and BFF patterns |
+| `connectors` | `openapi/composables/connectors/` | headless CRUD helpers built on top of `useAsyncData` |
+
+Examples:
 
 ```ts
-// nuxt.config.ts
-runtimeConfig: {
-  public: {
-    apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://api.example.com';
-  }
+openapi: {
+  input: './swagger.yaml',
+  generators: ['useFetch', 'useAsyncData'],
 }
 ```
 
-All generated composables and connectors pick up `apiBaseUrl` automatically.
+```ts
+openapi: {
+  input: './swagger.yaml',
+  generators: ['useAsyncData', 'connectors'],
+}
+```
 
----
+```ts
+openapi: {
+  input: './swagger.yaml',
+  generators: ['nuxtServer'],
+  serverRoutePath: 'server/routes/api',
+  enableBff: true,
+}
+```
 
-## OpenAPI Generation
+## Connectors
 
-The project now uses a single Node-first OpenAPI pipeline based on `@hey-api/openapi-ts` to generate the SDK that feeds the Nuxt composables and server helpers.
+When `connectors` is enabled, the module generates resource-oriented headless CRUD helpers on top of `useAsyncData`.
 
----
+```ts
+const { getAll, get, create, update, del } = usePetsConnector()
+```
+
+Connectors are useful when your app repeatedly builds list, detail, create, update, and delete flows around the same resource model.
+
+## Base URL Configuration
+
+Generated composables and connectors can resolve their base URL from `runtimeConfig.public.apiBaseUrl`.
+
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://api.example.com',
+    },
+  },
+})
+```
+
+If you do not want a global fallback, you can still pass `baseURL` per call.
+
+## Global Headers and Callbacks
+
+The generated runtime can integrate with two lightweight extension points:
+
+- `useApiHeaders()` or `$getApiHeaders` for shared request headers
+- `getGlobalApiCallbacks` for shared request lifecycle callbacks
+
+This keeps auth and cross-cutting request behavior in your Nuxt app instead of hardcoding it into generated output.
+
+## Local Development
+
+This repository includes a small development harness for contributor workflows:
+
+```bash
+npm run dev:generate:all
+npm run dev:generate:openapi
+npm run dev:generate:use-fetch
+npm run dev:generate:use-async-data
+```
+
+These scripts are for repository development and smoke-testing generator changes.
 
 ## Documentation
 
-|                                              |                                               |
-| -------------------------------------------- | --------------------------------------------- |
-| [Connectors](./docs/connectors/index.md)     | Full connector API reference and examples     |
-| [Quick Start](./docs/QUICK-START.md)         | From zero to working composables in 5 minutes |
-| [API Reference](./docs/API-REFERENCE.md)     | All options and TypeScript types              |
-| [Architecture](./docs/ARCHITECTURE.md)       | How the generator works internally            |
-| [Troubleshooting](./docs/TROUBLESHOOTING.md) | Common errors and solutions                   |
-
----
+- [Documentation site](https://nuxt-openapi-hyperfetch.netlify.app/)
+- [Getting Started](./docs/vitepress/guide/getting-started.md)
+- [Choosing a Generator](./docs/vitepress/guide/choosing-a-generator.md)
+- [Connectors](./docs/vitepress/connectors/index.md)
+- [Troubleshooting](./docs/vitepress/troubleshooting/index.md)
+- [Contributing](./CONTRIBUTING.md)
 
 ## Contributing
 
 ```bash
 npm install
 npm run build
-npm run validate   # lint + type check
+npm run validate
 ```
+
+If your change affects generated output, also run the relevant `dev:generate:*` command and inspect `openapi/`.
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
----
-
 ## License
 
-Apache-2.0 — see [LICENSE](./LICENSE) for details.
+Apache-2.0. See [LICENSE](./LICENSE).

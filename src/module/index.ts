@@ -5,15 +5,15 @@ import { generateUseFetchComposables } from '../generators/use-fetch/generator.j
 import { generateUseAsyncDataComposables } from '../generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from '../generators/nuxt-server/generator.js';
 import { generateConnectors } from '../generators/connectors/generator.js';
-import { createConsoleLogger } from '../cli/logger.js';
-import { normalizeGenerators } from '../cli/config.js';
+import { normalizeGenerators } from '../config/generators.js';
 import { isConnectorsRequested } from '../config/connectors.js';
+import { createConsoleLogger } from '../utils/logger.js';
 import type { ModuleOptions } from './types.js';
 
 export default defineNuxtModule<ModuleOptions>({
   meta: {
     name: 'nuxt-openapi-hyperfetch',
-    configKey: 'openApiHyperFetch',
+    configKey: 'openapi',
   },
 
   defaults: {
@@ -31,7 +31,7 @@ export default defineNuxtModule<ModuleOptions>({
     if (!options.input) {
       console.warn(
         '[nuxt-openapi-hyperfetch] No input configured — skipping generation.\n' +
-          "Add `openApiHyperFetch: { input: './swagger.yaml' }` to your nuxt.config.ts"
+          "Add `openapi: { input: './swagger.yaml' }` to your nuxt.config.ts"
       );
       return;
     }

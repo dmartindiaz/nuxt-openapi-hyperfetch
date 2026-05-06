@@ -2,7 +2,7 @@ import type { GeneratorConfig } from '../config/types.js';
 
 /**
  * Configuration options for the nuxt-openapi-hyperfetch Nuxt module.
- * Extends the CLI GeneratorConfig so the same fields work in both nxh.config.js and nuxt.config.ts.
+ * Extends the shared generator config used by the Nuxt module.
  */
 export interface ModuleOptions extends GeneratorConfig {
   /**
@@ -31,7 +31,7 @@ export interface ModuleOptions extends GeneratorConfig {
 
   /**
    * Backward-compatible connectors flag.
-   * Prefer `generators: ['connectors']` so module and CLI behave the same.
+    * Prefer `generators: ['connectors']` so the module stays declarative.
    * When true, connectors are generated and useAsyncData is added automatically.
    * @default false
    */

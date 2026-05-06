@@ -12,23 +12,23 @@ import type { AuthContext } from './types.js';
 
 /**
  * Get authentication context from the current request
- * 
+ *
  * TODO: Implement your authentication logic here
  * This function is called automatically by all generated server routes.
- * 
+ *
  * IMPORTANT: This file is NEVER regenerated - your changes are safe!
- * 
+ *
  * Examples for popular auth modules:
- * 
+ *
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Option 1: @sidebase/nuxt-auth
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * import { getServerSession } from '#auth';
- * 
+ *
  * export async function getAuthContext(event: H3Event): Promise<AuthContext> {
  *   const session = await getServerSession(event);
- *   
+ *
  *   if (!session) {
  *     return {
  *       isAuthenticated: false,
@@ -37,7 +37,7 @@ import type { AuthContext } from './types.js';
  *       permissions: [],
  *     };
  *   }
- *   
+ *
  *   return {
  *     isAuthenticated: true,
  *     userId: session.user.id,
@@ -46,17 +46,17 @@ import type { AuthContext } from './types.js';
  *     permissions: session.user.permissions || [],
  *   };
  * }
- * 
+ *
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Option 2: Custom JWT
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * import { getCookie } from 'h3';
  * import jwt from 'jsonwebtoken';
- * 
+ *
  * export async function getAuthContext(event: H3Event): Promise<AuthContext> {
  *   const token = getCookie(event, 'auth-token');
- *   
+ *
  *   if (!token) {
  *     return {
  *       isAuthenticated: false,
@@ -65,7 +65,7 @@ import type { AuthContext } from './types.js';
  *       permissions: [],
  *     };
  *   }
- *   
+ *
  *   try {
  *     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
  *     return {
@@ -84,16 +84,16 @@ import type { AuthContext } from './types.js';
  *     };
  *   }
  * }
- * 
+ *
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Option 3: Session Cookies
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * import { getCookie } from 'h3';
- * 
+ *
  * export async function getAuthContext(event: H3Event): Promise<AuthContext> {
  *   const sessionId = getCookie(event, 'session-id');
- *   
+ *
  *   if (!sessionId) {
  *     return {
  *       isAuthenticated: false,
@@ -102,10 +102,10 @@ import type { AuthContext } from './types.js';
  *       permissions: [],
  *     };
  *   }
- *   
+ *
  *   // TODO: Look up session in your database/store
  *   const session = await db.sessions.findOne({ id: sessionId });
- *   
+ *
  *   if (!session || session.expiresAt < Date.now()) {
  *     return {
  *       isAuthenticated: false,
@@ -114,7 +114,7 @@ import type { AuthContext } from './types.js';
  *       permissions: [],
  *     };
  *   }
- *   
+ *
  *   return {
  *     isAuthenticated: true,
  *     userId: session.userId,
@@ -131,7 +131,7 @@ import type { AuthContext } from './types.js';
 export async function getAuthContext(event: H3Event): Promise<AuthContext> {
   // TODO: Implement your authentication logic
   // See examples above for popular auth modules
-  
+
   return {
     isAuthenticated: false,
     userId: null,
@@ -149,9 +149,9 @@ export async function getAuthContext(event: H3Event): Promise<AuthContext> {
 export function generateAuthTypesStub(): string {
   return `/**
  * Authentication context type
- * 
+ *
  * IMPORTANT: This file is NEVER regenerated - your changes are safe!
- * 
+ *
  * You can extend this interface with any properties you need:
  * - User information (email, name, avatar)
  * - Permissions and roles
@@ -162,16 +162,16 @@ export function generateAuthTypesStub(): string {
 export interface AuthContext {
   /** Whether the user is authenticated */
   isAuthenticated: boolean;
-  
+
   /** User ID (null if not authenticated) */
   userId: string | null;
-  
+
   /** User roles (e.g., ['admin', 'user']) */
   roles: string[];
-  
+
   /** User permissions (e.g., ['pet:read', 'pet:write']) */
   permissions: string[];
-  
+
   // Add more fields as needed:
   // email?: string;
   // name?: string;
@@ -246,9 +246,9 @@ import type { AuthContext } from '~/server/auth/types';
 ${importTypes ? `import type { ${importTypes} } from '${modelsImportPath}';\n` : ''}
 /**
  * Transformer for ${resource} endpoints
- * 
+ *
  * IMPORTANT: This file is NEVER regenerated - your changes are safe!
- * 
+ *
  * This transformer is automatically called by generated server routes.
  * Add your business logic here:
  * - Data transformation
@@ -257,7 +257,7 @@ ${importTypes ? `import type { ${importTypes} } from '${modelsImportPath}';\n` :
  * - Combining multiple sources
  * - Caching logic
  * - Rate limiting
- * 
+ *
  * The transformer receives:
  * - data: The raw response from the backend API
  * - event: The h3 event (for accessing headers, query params, etc.)
@@ -266,25 +266,25 @@ ${importTypes ? `import type { ${importTypes} } from '${modelsImportPath}';\n` :
 
 /**
  * Transform ${resource} data
- * 
+ *
  * TODO: Implement your transformation logic here
- * 
+ *
  * Examples:
- * 
+ *
  * 1. Add computed fields:
  *    return { ...data, fullName: \`\${data.firstName} \${data.lastName}\` }
- * 
+ *
  * 2. Filter sensitive data:
  *    const { password, internalId, ...safe } = data
  *    return safe
- * 
+ *
  * 3. Add permissions:
  *    return {
  *      ...data,
  *      canEdit: auth.permissions.includes('${resourceCamel}:write'),
  *      canDelete: auth.permissions.includes('${resourceCamel}:delete'),
  *    }
- * 
+ *
  * 4. Filter based on permissions:
  *    if (!auth.permissions.includes('${resourceCamel}:read:all')) {
  *      return { ...data, sensitiveField: undefined }
@@ -297,7 +297,7 @@ export async function transform${resourcePascal}<T = any>(
   auth: AuthContext | null
 ): Promise<T> {
   // TODO: Add your transformation logic here
-  
+
   // Example: Add permission flags
   // if (typeof data === 'object' && data !== null) {
   //   return {
@@ -306,7 +306,7 @@ export async function transform${resourcePascal}<T = any>(
   //     canDelete: auth?.permissions.includes('${resourceCamel}:delete') ?? false,
   //   } as T;
   // }
-  
+
   // Default: Return data unchanged
   return data;
 }
@@ -320,13 +320,13 @@ export async function transform${resourcePascal}<T = any>(
 export function generateTransformerExamples(): string {
   return `/**
  * ⚠️ EXAMPLES ONLY - DO NOT EDIT
- * 
+ *
  * This file contains examples of transformer patterns.
  * Copy these examples to your actual transformer files.
- * 
+ *
  * This file is regenerated on every generation - changes will be lost!
- * 
- * @generated by nuxt-openapi-generator
+ *
+ * @generated by nuxt-openapi-hyperfetch
  */
 
 import type { H3Event } from 'h3';
@@ -336,7 +336,7 @@ import type { AuthContext } from '~/server/auth/types';
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Example 1: Basic Transformation
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * Transform backend data to frontend format
  */
 export async function exampleBasicTransform<T>(
@@ -350,10 +350,10 @@ export async function exampleBasicTransform<T>(
       ...data,
       // Example: Format dates
       // createdAtFormatted: new Date(data.createdAt).toLocaleDateString(),
-      
+
       // Example: Add computed values
       // fullName: \`\${data.firstName} \${data.lastName}\`,
-      
+
       // Example: Add metadata
       // _metadata: {
       //   retrievedAt: Date.now(),
@@ -361,7 +361,7 @@ export async function exampleBasicTransform<T>(
       // },
     } as T;
   }
-  
+
   return data;
 }
 
@@ -369,7 +369,7 @@ export async function exampleBasicTransform<T>(
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Example 2: Filter Sensitive Data
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * Remove fields that shouldn't be exposed to the client
  */
 export async function exampleFilterSensitiveData(
@@ -379,17 +379,17 @@ export async function exampleFilterSensitiveData(
 ): Promise<any> {
   // Define sensitive fields
   const sensitiveFields = ['password', 'passwordHash', 'ssn', 'internalId', 'secretKey'];
-  
+
   if (Array.isArray(data)) {
     return data.map(item => filterObject(item, sensitiveFields));
   }
-  
+
   return filterObject(data, sensitiveFields);
 }
 
 function filterObject(obj: any, fieldsToRemove: string[]): any {
   if (typeof obj !== 'object' || obj === null) return obj;
-  
+
   const filtered = { ...obj };
   fieldsToRemove.forEach(field => delete filtered[field]);
   return filtered;
@@ -399,7 +399,7 @@ function filterObject(obj: any, fieldsToRemove: string[]): any {
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Example 3: Add Permission Flags
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * Enrich data with user-specific permissions
  */
 export async function exampleAddPermissions(
@@ -408,17 +408,17 @@ export async function exampleAddPermissions(
   auth: AuthContext | null
 ): Promise<any> {
   if (typeof data !== 'object' || data === null) return data;
-  
+
   return {
     ...data,
     // Add permission flags
     canEdit: auth?.permissions.includes('resource:write') ?? false,
     canDelete: auth?.permissions.includes('resource:delete') ?? false,
     canShare: auth?.permissions.includes('resource:share') ?? false,
-    
+
     // Add ownership check
     isOwner: auth?.userId === data.userId,
-    
+
     // Add role-based flags
     isAdmin: auth?.roles.includes('admin') ?? false,
   };
@@ -428,7 +428,7 @@ export async function exampleAddPermissions(
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Example 4: Combine Multiple Sources
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * Fetch additional data from other endpoints
  */
 export async function exampleCombineSources(
@@ -437,11 +437,11 @@ export async function exampleCombineSources(
   auth: AuthContext | null
 ): Promise<any> {
   const config = useRuntimeConfig();
-  
+
   // Example: Fetch related data
   // const reviews = await $fetch(\`\${config.apiBaseUrl}/reviews/\${data.id}\`);
   // const availability = await $fetch(\`\${config.apiBaseUrl}/availability/\${data.id}\`);
-  
+
   return {
     ...data,
     // reviews,
@@ -453,7 +453,7 @@ export async function exampleCombineSources(
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Example 5: Permission-Based Filtering
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * Show/hide fields based on user permissions
  */
 export async function examplePermissionBasedFiltering(
@@ -462,22 +462,22 @@ export async function examplePermissionBasedFiltering(
   auth: AuthContext | null
 ): Promise<any> {
   if (typeof data !== 'object' || data === null) return data;
-  
+
   const result = { ...data };
-  
+
   // Hide sensitive fields for non-admins
   if (!auth?.roles.includes('admin')) {
     delete result.internalNotes;
     delete result.costPrice;
     delete result.supplierInfo;
   }
-  
+
   // Show detailed info only for specific permission
   if (!auth?.permissions.includes('resource:read:detailed')) {
     delete result.analytics;
     delete result.auditLog;
   }
-  
+
   return result;
 }
 
@@ -485,7 +485,7 @@ export async function examplePermissionBasedFiltering(
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Example 6: Array Transformation
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * Transform each item in an array
  */
 export async function exampleArrayTransform(
@@ -494,7 +494,7 @@ export async function exampleArrayTransform(
   auth: AuthContext | null
 ): Promise<any[]> {
   if (!Array.isArray(data)) return data;
-  
+
   return data.map(item => ({
     ...item,
     // Add permission checks for each item
@@ -507,7 +507,7 @@ export async function exampleArrayTransform(
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Example 7: Error Handling
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 
+ *
  * Handle transformation errors gracefully
  */
 export async function exampleErrorHandling(
@@ -523,7 +523,7 @@ export async function exampleErrorHandling(
     };
   } catch (error) {
     console.error('Transformation error:', error);
-    
+
     // Return original data on error
     return data;
   }
@@ -589,7 +589,7 @@ import { getServerSession } from '#auth';
 
 export async function getAuthContext(event: H3Event): Promise<AuthContext> {
   const session = await getServerSession(event);
-  
+
   return {
     isAuthenticated: !!session,
     userId: session?.user.id ?? null,
@@ -659,12 +659,12 @@ export async function transformPost(data: any, event: H3Event, auth: AuthContext
 \`\`\`typescript
 export async function transformProduct(data: any, event: H3Event, auth: AuthContext | null) {
   const config = useRuntimeConfig();
-  
+
   const [reviews, inventory] = await Promise.all([
     $fetch(\`\${config.apiBaseUrl}/reviews/\${data.id}\`),
     $fetch(\`\${config.apiBaseUrl}/inventory/\${data.id}\`),
   ]);
-  
+
   return {
     ...data,
     reviews,
@@ -678,20 +678,20 @@ export async function transformProduct(data: any, event: H3Event, auth: AuthCont
 \`\`\`typescript
 export async function transformReport(data: any, event: H3Event, auth: AuthContext | null) {
   const result = { ...data };
-  
+
   // Hide sensitive data for non-admins
   if (!auth?.roles.includes('admin')) {
     delete result.financialDetails;
     delete result.internalNotes;
   }
-  
+
   return result;
 }
 \`\`\`
 
 ## 🔄 Regeneration Safety
 
-**IMPORTANT:** When you regenerate routes with the CLI:
+**IMPORTANT:** When you regenerate routes through the module or development harness:
 - ✅ Transformer files are **PRESERVED**
 - ✅ Auth context files are **PRESERVED**
 - ❌ Generated routes are **OVERWRITTEN** (but this is OK!)

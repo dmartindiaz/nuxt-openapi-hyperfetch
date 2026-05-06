@@ -10,7 +10,7 @@ import type { ConnectorsConfig } from '../../config/types.js';
 export interface ConnectorGeneratorOptions {
   /** Absolute or relative path to the OpenAPI YAML/JSON spec */
   inputSpec: string;
-  /** Directory where connector files will be written. E.g. ./composables/connectors */
+  /** Directory where connector files will be written. E.g. ./openapi/composables/connectors */
   outputDir: string;
   /**
    * Directory where the useAsyncData composables live (only used for getAll/list),

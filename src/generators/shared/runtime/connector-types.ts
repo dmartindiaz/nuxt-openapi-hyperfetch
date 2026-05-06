@@ -2,7 +2,7 @@
  * connector-types.ts — Structural return type interfaces for the 4 runtime connectors.
  *
  * Uses locally-defined minimal type aliases for Ref/ComputedRef/ShallowRef so this
- * file compiles in the CLI context (where Vue is not installed) and remains
+ * file compiles in the generator context (where Vue is not installed) and remains
  * structurally compatible with Vue's actual types in the user's Nuxt project.
  *
  * Copied to the user's project alongside the generated connectors and runtime helpers.

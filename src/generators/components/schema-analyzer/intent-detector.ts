@@ -72,7 +72,7 @@ function getRequestBodySchema(operation: OpenApiOperation): OpenApiPropertySchem
  * Detect the CRUD intent of a single endpoint.
  *
  * Priority:
- * 1. x-nxh-intent extension on the operation (developer override)
+ * 1. x-openapi-intent extension on the operation (developer override)
  * 2. HTTP method + path pattern + response schema
  */
 export function detectIntent(
@@ -81,7 +81,7 @@ export function detectIntent(
   operation: OpenApiOperation
 ): Intent {
   // 1. Developer override via OpenAPI extension
-  const override = operation['x-nxh-intent'];
+  const override = operation['x-openapi-intent'];
   if (override) {
     return override;
   }

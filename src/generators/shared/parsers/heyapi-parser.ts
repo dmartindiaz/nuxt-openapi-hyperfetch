@@ -3,7 +3,7 @@ import * as path from 'path';
 import { existsSync, readFileSync } from 'node:fs';
 import type { ApiClassInfo, MethodInfo } from '../types.js';
 import { pascalCase } from 'change-case';
-import { p } from '../../../cli/logger.js';
+import { logWarning } from '../../../utils/logger.js';
 
 interface SdkOpInfo {
   httpMethod: string;
@@ -67,7 +67,7 @@ export function parseApiFile(sdkFilePath: string): ApiClassInfo {
         methodInfos.push(methodInfo);
       }
     } catch (error) {
-      p.log.warn(`Could not parse Hey API operation "${opName}": ${String(error)}`);
+      logWarning(`Could not parse Hey API operation "${opName}": ${String(error)}`);
     }
   }
 
@@ -159,7 +159,7 @@ function extractMethodInfo(
 
   const opInfo = opMap.get(opName);
   if (!opInfo) {
-    p.log.warn(`Operation "${opName}" not found in sdk.gen.ts — skipping`);
+    logWarning(`Operation "${opName}" not found in sdk.gen.ts - skipping`);
     return null;
   }
 

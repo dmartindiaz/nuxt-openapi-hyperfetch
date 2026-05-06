@@ -1,13 +1,13 @@
 import * as path from 'path';
-import { p, logSuccess, logError } from './cli/logger.js';
+import { logInfo, logSuccess, logError } from './utils/logger.js';
 
 export const generateOpenApiFiles = async (input: string, output: string) => {
   try {
     const inputPath = path.resolve(input);
     const outputPath = path.resolve(output);
 
-    p.log.info(`Input: ${inputPath}`);
-    p.log.info(`Output: ${outputPath}`);
+    logInfo(`Input: ${inputPath}`);
+    logInfo(`Output: ${outputPath}`);
 
     const { createClient } = await import('@hey-api/openapi-ts');
     await createClient({

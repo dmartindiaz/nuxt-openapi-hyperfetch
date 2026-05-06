@@ -70,6 +70,7 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'node_modules/**',
+      'scripts/**',
       'swagger/**',
       'test-*/**',
       'index.ts',
