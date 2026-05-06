@@ -1,6 +1,6 @@
 {
   "name": "nuxt-openapi-hyperfetch",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "Nuxt module for generating an OpenAPI SDK, composables, server routes, and headless CRUD connectors.",
   "type": "module",
   "author": "",
@@ -77,19 +77,14 @@
   },
   "keywords": [
     "openapi",
+    "generator",
     "nuxt",
-    "rest",
+    "nuxt-module",
     "composables",
     "fetch",
     "$fetch",
-    "useFetch",
-    "useAsyncData",
-    "api",
-    "open",
     "codegen",
-    "server",
-    "node",
-    "headless",
-    "sdk"
+    "api",
+    "bff"
   ]
 }
