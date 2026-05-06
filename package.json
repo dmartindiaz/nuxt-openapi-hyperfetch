@@ -48,17 +48,6 @@
     "nuxt": "^3.0.0 || ^4.0.0",
     "zod": "^3.0.0"
   },
-  "peerDependenciesMeta": {
-    "nuxt": {
-      "optional": true
-    },
-    "@nuxt/kit": {
-      "optional": true
-    },
-    "zod": {
-      "optional": false
-    }
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@nuxt/kit": "^4.4.2",

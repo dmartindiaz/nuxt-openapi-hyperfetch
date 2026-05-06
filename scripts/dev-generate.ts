@@ -1,16 +1,32 @@
+import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { generateOpenApiFiles } from '../src/generate.ts';
 import { generateUseFetchComposables } from '../src/generators/use-fetch/generator.ts';
 import { generateUseAsyncDataComposables } from '../src/generators/use-async-data/generator.ts';
 import { createConsoleLogger, logError, logInfo, logSuccess } from '../src/utils/logger.ts';
 
+const DEFAULT_DEV_OPENAPI_FILES = ['dev-openapi.json', 'dev-openapi.yaml', 'dev-openapi.yml'] as const;
+
 type DevCommand = 'openapi' | 'use-fetch' | 'use-async-data' | 'all' | 'help';
 
 interface DevOptions {
-  input: string;
+  input?: string;
   output: string;
   baseUrl?: string;
   skipOpenApi: boolean;
+}
+
+function resolveDefaultInput(cwd: string): string {
+  for (const candidate of DEFAULT_DEV_OPENAPI_FILES) {
+    const candidatePath = path.resolve(cwd, candidate);
+    if (existsSync(candidatePath)) {
+      return `./${candidate}`;
+    }
+  }
+
+  throw new Error(
+    `No default OpenAPI development file found. Expected one of: ${DEFAULT_DEV_OPENAPI_FILES.join(', ')}`
+  );
 }
 
 function printHelp() {
@@ -22,14 +38,14 @@ Usage:
   npm run dev:generate:use-async-data
 
 Extra args:
-  --input <path>       OpenAPI spec path. Default: ./swagger.yaml
+  --input <path>       OpenAPI spec path. Default: first match of ./dev-openapi.json, ./dev-openapi.yaml, ./dev-openapi.yml
   --output <path>      Generated output root. Default: ./openapi
   --base-url <url>     Base URL injected into generated composables
   --skip-openapi       Reuse existing generated OpenAPI output
 
 Examples:
   npm run dev:generate:use-fetch -- --skip-openapi
-  npm run dev:generate:all -- --input ./swagger.yaml --output ./openapi
+  npm run dev:generate:all -- --input ./dev-openapi.json --output ./openapi
   npm run dev:generate:use-async-data -- --base-url https://api.example.com
 `);
 }
@@ -53,7 +69,6 @@ function parseCommand(raw?: string): DevCommand {
 
 function parseOptions(args: string[]): DevOptions {
   const options: DevOptions = {
-    input: './swagger.yaml',
     output: './openapi',
     skipOpenApi: false,
   };
@@ -96,7 +111,8 @@ async function run() {
 
   const options = parseOptions(rawArgs);
   const logger = createConsoleLogger();
-  const inputPath = path.resolve(process.cwd(), options.input);
+  const resolvedInputOption = options.input ?? resolveDefaultInput(process.cwd());
+  const inputPath = path.resolve(process.cwd(), resolvedInputOption);
   const outputPath = path.resolve(process.cwd(), options.output);
   const generateOptions = options.baseUrl ? { baseUrl: options.baseUrl } : undefined;
 
