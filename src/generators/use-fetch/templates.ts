@@ -24,7 +24,6 @@ function generateFileHeader(): string {
  */
 export interface GenerateOptions {
   baseUrl?: string;
-  backend?: string;
 }
 
 /**
@@ -147,7 +146,7 @@ function generateUrl(method: MethodInfo): string {
 
   let url = method.path;
   for (const param of method.pathParams) {
-    const accessor = method.paramsShape === 'nested' ? `p.value.path.${param}` : `p.value.${param}`;
+    const accessor = `p.value.path.${param}`;
     url = url.replace(`{${param}}`, `\${${accessor}}`);
   }
 
@@ -170,23 +169,12 @@ function generateFetchOptions(method: MethodInfo, generateOptions?: GenerateOpti
 
   // Body
   if (method.hasBody) {
-    if (method.paramsShape === 'nested') {
-      options.push(`body: computed(() => p.value.body)`);
-    } else if (method.bodyField) {
-      options.push(`body: computed(() => p.value.${method.bodyField})`);
-    }
+    options.push(`body: computed(() => p.value.body)`);
   }
 
   // Query params
   if (method.hasQueryParams) {
-    if (method.paramsShape === 'nested') {
-      options.push(`query: computed(() => p.value.query)`);
-    } else if (method.queryParams.length > 0) {
-      const queryObj = method.queryParams
-        .map((param) => `${param}: p.value.${param}`)
-        .join(',\n      ');
-      options.push(`query: computed(() => ({\n      ${queryObj}\n    }))`);
-    }
+    options.push(`query: computed(() => p.value.query)`);
   }
 
   // Headers

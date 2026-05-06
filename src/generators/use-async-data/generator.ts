@@ -2,14 +2,7 @@ import * as path from 'path';
 import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import { format } from 'prettier';
-import {
-  getApiFiles as getApiFilesOfficial,
-  parseApiFile as parseApiFileOfficial,
-} from './parser.js';
-import {
-  getApiFiles as getApiFilesHeyApi,
-  parseApiFile as parseApiFileHeyApi,
-} from '../shared/parsers/heyapi-parser.js';
+import { getApiFiles, parseApiFile } from './parser.js';
 import {
   generateComposableFile,
   generateRawComposableFile,
@@ -29,10 +22,6 @@ export async function generateUseAsyncDataComposables(
   logger: Logger = createClackLogger()
 ): Promise<void> {
   const mainSpinner = logger.spinner();
-
-  // Select parser based on chosen backend
-  const getApiFiles = options?.backend === 'heyapi' ? getApiFilesHeyApi : getApiFilesOfficial;
-  const parseApiFile = options?.backend === 'heyapi' ? parseApiFileHeyApi : parseApiFileOfficial;
 
   // 1. Get all API files
   mainSpinner.start('Scanning API files');
@@ -117,7 +106,7 @@ export async function generateUseAsyncDataComposables(
   // 5. Calculate relative import path from composables to APIs
   const relativePath = calculateRelativeImportPath(composablesDir, inputDir);
 
-  // 6. Generate each composable (normal + Raw if available)
+  // 6. Generate each composable (normal + raw)
   mainSpinner.start('Generating composables');
   let successCount = 0;
   let errorCount = 0;
@@ -140,22 +129,20 @@ export async function generateUseAsyncDataComposables(
       errorCount++;
     }
 
-    // Generate Raw version if available
-    if (method.hasRawMethod && method.rawMethodName) {
-      try {
-        const code = generateRawComposableFile(method, relativePath, options);
-        const formattedCode = await formatCode(code, logger);
-        const composableName = `useAsyncData${method.rawMethodName.replace(/Raw$/, '')}Raw`;
-        const fileName = `${composableName}.ts`;
-        const filePath = path.join(composablesDir, fileName);
+    // Generate Raw version for every supported operation
+    try {
+      const code = generateRawComposableFile(method, relativePath, options);
+      const formattedCode = await formatCode(code, logger);
+      const composableName = `useAsyncData${method.name.charAt(0).toUpperCase() + method.name.slice(1)}Raw`;
+      const fileName = `${composableName}.ts`;
+      const filePath = path.join(composablesDir, fileName);
 
-        await fs.writeFile(filePath, formattedCode, 'utf-8');
-        generatedComposableNames.push(composableName);
-        successCount++;
-      } catch (error) {
-        logger.log.error(`Error generating ${method.composableName} (Raw): ${String(error)}`);
-        errorCount++;
-      }
+      await fs.writeFile(filePath, formattedCode, 'utf-8');
+      generatedComposableNames.push(composableName);
+      successCount++;
+    } catch (error) {
+      logger.log.error(`Error generating ${method.composableName} (Raw): ${String(error)}`);
+      errorCount++;
     }
   }
 

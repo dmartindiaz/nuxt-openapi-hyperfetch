@@ -111,23 +111,16 @@ The documentation is organized to help different audiences find what they need q
 
 ## Key Concepts (Quick Reference)
 
-### Generator Backends
+### Generator Pipeline
 
-The CLI supports two backends for Stage 1 (OpenAPI → TypeScript Client):
+Stage 1 uses a single Node-first OpenAPI SDK generation path based on `@hey-api/openapi-ts`. The generated SDK is then parsed by the shared parser layer in `src/generators/shared/parsers/` to produce the Nuxt composables and server helpers.
 
-| Backend | Flag | Requires | Notes |
-|---|---|---|---|
-| `official` | `--backend official` | Java 11+ | Uses `@openapitools/openapi-generator-cli` |
-| `heyapi` | `--backend heyapi` | Node.js only | Uses `@hey-api/openapi-ts` |
-
-Both backends feed into the same Stage 2 parsers (`src/generators/shared/parsers/`), producing identical `MethodInfo[]` so all templates are shared. The CLI checks for Java and aborts with an install link if `official` is selected without Java present.
-
-**Read more**: [Quick Start - Generator Backends](./docs/QUICK-START.md#generator-backends)
+**Read more**: [Quick Start - Core Flow](./docs/QUICK-START.md#core-flow)
 
 ### Two-Stage Generation
 
 ```
-OpenAPI Spec → [Stage 1: official or heyapi backend] → TypeScript Client
+OpenAPI Spec → [Stage 1: Node-first OpenAPI SDK generation] → TypeScript Client
 TypeScript Client → [Stage 2: Our Parser + Templates] → Nuxt Composables
 ```
 
@@ -273,7 +266,7 @@ This compiles TypeScript from `src/` to JavaScript in `dist/`. The CLI (`nxh` / 
 # 2. Build
 npm run build
 # 3. Test
-node dist/index.js generate -i swagger.yaml -o ./swagger
+node dist/index.js generate -i swagger.yaml -o ./openapi
 ```
 
 See [Development Workflow](./docs/DEVELOPMENT.md#development-workflow) for the full step-by-step guide.

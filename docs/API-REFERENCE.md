@@ -47,14 +47,14 @@ nxh generate
 **Non-Interactive Mode:**
 
 ```bash
-nxh generate -i swagger.yaml -o ./swagger
+nxh generate -i swagger.yaml -o ./openapi
 # Still prompts for composable types
 ```
 
 **Fully Automated:**
 
 ```bash
-echo "useFetch" | nxh generate -i swagger.yaml -o ./swagger
+echo "useFetch" | nxh generate -i swagger.yaml -o ./openapi
 ```
 
 **Exit Codes:**
@@ -64,29 +64,22 @@ echo "useFetch" | nxh generate -i swagger.yaml -o ./swagger
 
 ## Configuration
 
-### OpenAPI Generator Config
+### OpenAPI SDK Output
 
-Located in: `openapitools.json` (auto-created if missing)
+Stage 1 SDK generation is handled internally through `@hey-api/openapi-ts`.
 
-```json
-{
-  "generator-cli": {
-    "version": "7.14.0",
-    "generators": {
-      "typescript": {
-        "generatorName": "typescript-fetch",
-        "output": "./swagger"
-      }
-    }
-  }
-}
+The generated output root is now expected to look like this:
+
+```text
+openapi/
+  sdk.gen.ts
+  types.gen.ts
+  client.gen.ts
+  client/
+  core/
+  composables/
+  runtime/
 ```
-
-**Key Settings:**
-
-- `generatorName`: Must be `typescript-fetch` (only supported target)
-- `output`: Where OpenAPI Generator writes TypeScript files
-- `version`: OpenAPI Generator CLI version
 
 ### Prettier Config
 
@@ -450,15 +443,15 @@ function extractMethodInfo(method: MethodDeclaration, sourceFile: SourceFile): M
 function getApiFiles(inputDir: string): string[];
 ```
 
-**Purpose**: Find all API files in the `apis/` subdirectory.
+**Purpose**: Resolve the generated OpenAPI SDK entry files used by the shared parser.
 
 **Parameters:**
 
-- `inputDir`: Path to the root output directory (e.g., `./swagger`). The function appends `/apis` internally.
+- `inputDir`: Path to the generated SDK root (e.g., `./openapi`).
 
 **Returns**: Array of absolute file paths
 
-**Filters**: Only includes `*.ts` files that are not `index.ts`
+**Expected files**: `sdk.gen.ts` and related generated SDK files
 
 ### parseApiFile()
 

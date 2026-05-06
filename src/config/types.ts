@@ -1,5 +1,3 @@
-import type { GeneratorBackend, ConfigGenerator } from '../cli/types.js';
-
 export type GeneratorType = 'useFetch' | 'useAsyncData' | 'nuxtServer' | 'connectors';
 export type ConnectorStrategy = 'manual' | 'hybrid';
 export type ConnectorOperationName = 'getAll' | 'get' | 'create' | 'update' | 'delete';
@@ -49,14 +47,6 @@ export interface GeneratorConfig {
   serverRoutePath?: string;
   /** Enable BFF pattern (for nuxtServer mode) */
   enableBff?: boolean;
-  /** Generator backend: official (Java) or heyapi (Node.js) */
-  backend?: GeneratorBackend;
-  /**
-   * Generation engine to use.
-   * - 'openapi': @openapitools/openapi-generator-cli (requires Java 11+)
-   * - 'heyapi': @hey-api/openapi-ts (Node.js native, no Java required)
-   */
-  generator?: ConfigGenerator;
   /**
    * Generate headless UI connector composables on top of useAsyncData.
    * Requires useAsyncData to also be generated.

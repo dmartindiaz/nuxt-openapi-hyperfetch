@@ -244,10 +244,10 @@ Connector-level and per-operation callbacks are also available — see [Callback
 ```bash
 nxh generate
 # or with arguments:
-nxh generate -i ./swagger.yaml -o ./composables/api
+nxh generate -i ./swagger.yaml -o ./openapi
 ```
 
-The CLI asks for your spec path, output folder, engine (`heyapi` or `official`), and which generators to run.
+The CLI asks for your spec path, output folder, and which generators to run.
 
 ### Generators semantics (CLI + config)
 
@@ -269,7 +269,7 @@ import type { GeneratorConfig } from 'nuxt-openapi-hyperfetch';
 
 const config: GeneratorConfig = {
   input: './swagger.yaml',
-  output: './composables/api',
+  output: './openapi',
   generators: ['useAsyncData', 'connectors'],
   connectors: {
     strategy: 'hybrid',
@@ -307,9 +307,8 @@ export default defineNuxtConfig({
 
   openApiHyperFetch: {
     input: './swagger.yaml',
-    output: './composables/api',
+    output: './openapi',
     generators: ['useFetch', 'connectors', 'nuxtServer'],
-    backend: 'heyapi',
     enableAutoImport: true,
   },
 });
@@ -330,18 +329,9 @@ All generated composables and connectors pick up `apiBaseUrl` automatically.
 
 ---
 
-## Two generation engines
+## OpenAPI Generation
 
-| Engine     | Requires  | Best for                   |
-| ---------- | --------- | -------------------------- |
-| `heyapi`   | Node only | Quick setup, CI/CD         |
-| `official` | Java 11+  | Maximum spec compatibility |
-
-Pre-select in `nxh.config.js` to skip the prompt:
-
-```js
-export default { generator: 'heyapi', input: './swagger.yaml', output: './api' };
-```
+The project now uses a single Node-first OpenAPI pipeline based on `@hey-api/openapi-ts` to generate the SDK that feeds the Nuxt composables and server helpers.
 
 ---
 

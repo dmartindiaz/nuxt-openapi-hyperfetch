@@ -23,7 +23,6 @@ function generateFileHeader(): string {
  */
 export interface GenerateOptions {
   baseUrl?: string;
-  backend?: string;
 }
 
 /**
@@ -160,10 +159,9 @@ function generateFunctionBody(
   const args = hasParams ? `${paramsArg}, ${optionsArg}` : optionsArg;
 
   // Generate unique key for useAsyncData
-  const composableName =
-    isRaw && method.rawMethodName
-      ? `useAsyncData${method.rawMethodName.replace(/Raw$/, '')}Raw`
-      : method.composableName.replace(/^useFetch/, 'useAsyncData');
+  const composableName = isRaw
+    ? `useAsyncData${method.name.charAt(0).toUpperCase() + method.name.slice(1)}Raw`
+    : method.composableName.replace(/^useFetch/, 'useAsyncData');
 
   const key = `'${composableName}'`;
 
@@ -210,7 +208,7 @@ function generateUrl(method: MethodInfo): string {
 
   let url = method.path;
   for (const param of method.pathParams) {
-    const accessor = method.paramsShape === 'nested' ? `p.value.path.${param}` : `p.value.${param}`;
+    const accessor = `p.value.path.${param}`;
     url = url.replace(`{${param}}`, `\${${accessor}}`);
   }
 
@@ -233,23 +231,12 @@ function generateFetchOptions(method: MethodInfo, generateOptions?: GenerateOpti
 
   // Body
   if (method.hasBody) {
-    if (method.paramsShape === 'nested') {
-      options.push(`body: computed(() => p.value.body)`);
-    } else if (method.bodyField) {
-      options.push(`body: computed(() => p.value.${method.bodyField})`);
-    }
+    options.push(`body: computed(() => p.value.body)`);
   }
 
   // Query params (renamed to 'params' for $fetch)
   if (method.hasQueryParams) {
-    if (method.paramsShape === 'nested') {
-      options.push(`params: computed(() => p.value.query)`);
-    } else if (method.queryParams.length > 0) {
-      const queryObj = method.queryParams
-        .map((param) => `${param}: p.value.${param}`)
-        .join(',\n      ');
-      options.push(`params: computed(() => ({\n      ${queryObj}\n    }))`);
-    }
+    options.push(`params: computed(() => p.value.query)`);
   }
 
   // Headers

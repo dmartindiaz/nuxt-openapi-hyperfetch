@@ -2,14 +2,7 @@ import * as path from 'path';
 import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import { format } from 'prettier';
-import {
-  getApiFiles as getApiFilesOfficial,
-  parseApiFile as parseApiFileOfficial,
-} from './parser.js';
-import {
-  getApiFiles as getApiFilesHeyApi,
-  parseApiFile as parseApiFileHeyApi,
-} from '../shared/parsers/heyapi-parser.js';
+import { getApiFiles, parseApiFile } from './parser.js';
 import { generateComposableFile, generateIndexFile, type GenerateOptions } from './templates.js';
 import type { MethodInfo } from './types.js';
 import { type Logger, createClackLogger } from '../../cli/logger.js';
@@ -24,10 +17,6 @@ export async function generateUseFetchComposables(
   logger: Logger = createClackLogger()
 ): Promise<void> {
   const mainSpinner = logger.spinner();
-
-  // Select parser based on chosen backend
-  const getApiFiles = options?.backend === 'heyapi' ? getApiFilesHeyApi : getApiFilesOfficial;
-  const parseApiFile = options?.backend === 'heyapi' ? parseApiFileHeyApi : parseApiFileOfficial;
 
   // 1. Get all API files
   mainSpinner.start('Scanning API files');

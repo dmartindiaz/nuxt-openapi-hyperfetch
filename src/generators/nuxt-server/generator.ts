@@ -1,14 +1,7 @@
 import * as path from 'path';
 import fs from 'fs-extra';
 import { format } from 'prettier';
-import {
-  getApiFiles as getApiFilesOfficial,
-  parseApiFile as parseApiFileOfficial,
-} from './parser.js';
-import {
-  getApiFiles as getApiFilesHeyApi,
-  parseApiFile as parseApiFileHeyApi,
-} from '../shared/parsers/heyapi-parser.js';
+import { getApiFiles, parseApiFile } from './parser.js';
 import {
   generateServerRouteFile,
   generateRouteFilePath,
@@ -32,15 +25,10 @@ export async function generateNuxtServerRoutes(
   serverRoutePath: string,
   options?: {
     enableBff?: boolean;
-    backend?: string;
   },
   logger: Logger = createClackLogger()
 ): Promise<void> {
   const mainSpinner = logger.spinner();
-
-  // Select parser based on chosen backend
-  const getApiFiles = options?.backend === 'heyapi' ? getApiFilesHeyApi : getApiFilesOfficial;
-  const parseApiFile = options?.backend === 'heyapi' ? parseApiFileHeyApi : parseApiFileOfficial;
 
   const enableBff = options?.enableBff ?? false;
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import * as p from '@clack/prompts';
-import { generateOpenApiFiles, generateHeyApiFiles, checkJavaInstalled } from './generate.js';
+import { generateOpenApiFiles } from './generate.js';
 import { generateUseFetchComposables } from './generators/use-fetch/generator.js';
 import { generateUseAsyncDataComposables } from './generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from './generators/nuxt-server/generator.js';
@@ -12,7 +12,6 @@ import {
   promptComposablesSelection,
   promptServerRoutePath,
   promptBffConfig,
-  promptGeneratorBackend,
   promptConnectors,
 } from './cli/prompts.js';
 import { MESSAGES } from './cli/messages.js';
@@ -45,7 +44,6 @@ interface GenerateOptions {
   generators?: string;
   serverRoutePath?: string;
   enableBff?: boolean;
-  backend?: string;
   connectors?: boolean;
 }
 
@@ -66,7 +64,6 @@ program
   .option('--connectors', 'Generate headless UI connectors on top of useAsyncData', false)
   .option('--server-route-path <path>', 'Server route path (for nuxtServer mode)')
   .option('--enable-bff', 'Enable BFF pattern (for nuxtServer mode)', false)
-  .option('--backend <type>', 'Generator backend: official (Java) or heyapi (Node.js)')
   .action(async (options: GenerateOptions) => {
     try {
       // Load config file
@@ -91,10 +88,6 @@ program
         generators: parseGenerators(options.generators),
         serverRoutePath: options.serverRoutePath,
         enableBff: options.enableBff,
-        backend:
-          options.backend === 'official' || options.backend === 'heyapi'
-            ? options.backend
-            : undefined,
         // Only propagate if explicitly passed — undefined means "ask the user"
         createUseAsyncDataConnectors: options.connectors === true ? true : undefined,
       });
@@ -109,29 +102,6 @@ program
 
       if (config.dryRun) {
         p.log.warn('🔍 DRY RUN MODE - No files will be written');
-      }
-
-      // 0. Select generator engine (first question)
-      // Resolve engine from config.generator (user-facing) or config.backend (CLI flag)
-      // config.generator: 'openapi' | 'heyapi'  →  map 'openapi' to internal 'official'
-      const resolvedBackend =
-        config.generator === 'openapi'
-          ? 'official'
-          : config.generator === 'heyapi'
-            ? 'heyapi'
-            : config.backend;
-
-      const backend = await promptGeneratorBackend(resolvedBackend);
-
-      // Check Java availability when official backend is selected
-      if (backend === 'official' && !checkJavaInstalled()) {
-        p.log.error(
-          'Java not found. The OpenAPI Generator requires Java 11 or higher.\n' +
-            'Install it from: https://adoptium.net\n' +
-            'Or switch to @hey-api/openapi-ts which requires no Java.'
-        );
-        p.outro('Aborted.');
-        process.exit(1);
       }
 
       // 1. Determine composables to generate FIRST
@@ -179,7 +149,7 @@ program
       } else {
         // nuxtServer only: ask just for the OpenAPI spec, use default/config for output
         inputPath = await promptInputPath(config.input);
-        outputPath = config.output ?? './swagger';
+        outputPath = config.output ?? './openapi';
       }
 
       // 3. Ask whether to generate headless connectors (only if still unresolved)
@@ -218,11 +188,7 @@ program
       s.start(MESSAGES.steps.generatingOpenApi);
 
       if (!config.dryRun) {
-        if (backend === 'heyapi') {
-          await generateHeyApiFiles(inputPath, outputPath);
-        } else {
-          generateOpenApiFiles(inputPath, outputPath);
-        }
+        await generateOpenApiFiles(inputPath, outputPath);
         s.stop('OpenAPI files generated');
       } else {
         s.stop('Would generate OpenAPI files (skipped in dry-run)');
@@ -235,7 +201,7 @@ program
         const spinner = p.spinner();
         spinner.start(`Generating ${composable}...`);
 
-        const generateOptions = { baseUrl: config.baseUrl, backend };
+        const generateOptions = config.baseUrl ? { baseUrl: config.baseUrl } : undefined;
 
         try {
           switch (composable) {
@@ -265,7 +231,7 @@ program
               break;
             case 'nuxtServer':
               if (!config.dryRun) {
-                await generateNuxtServerRoutes(outputPath, serverRoutePath, { enableBff, backend });
+                await generateNuxtServerRoutes(outputPath, serverRoutePath, { enableBff });
                 spinner.stop(`✓ Generated Nuxt server routes`);
               } else {
                 spinner.stop(`Would generate Nuxt server routes (dry-run)`);

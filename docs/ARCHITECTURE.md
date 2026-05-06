@@ -23,8 +23,8 @@
                          │
                          ▼
 ┌──────────────────────────────────────────────────────────────┐
-│          OpenAPI Generator (typescript-fetch)                │
-│          Generates: PetApi.ts, models/, runtime.ts           │
+│         Node-first OpenAPI SDK Generation                    │
+│   Generates: sdk.gen.ts, types.gen.ts, client.gen.ts, ...    │
 └────────────────────────┬─────────────────────────────────────┘
                          │
                          ▼
@@ -76,29 +76,21 @@ This project operates in **two separate runtime contexts**:
 **Solution**: Use an existing OpenAPI client generator for Stage 1, then parse and transform its output in Stage 2.
 
 ```
-OpenAPI Spec → [Stage 1: backend A or B] → TypeScript Client
-TypeScript Client → [Stage 2: Our Parser + Templates] → Nuxt Composables
+OpenAPI Spec → [Stage 1: @hey-api/openapi-ts] → TypeScript SDK
+TypeScript SDK → [Stage 2: Shared Parser + Templates] → Nuxt Composables
 ```
 
-**Two supported backends for Stage 1:**
-
-| Backend | Package | Requires | Parser used in Stage 2 |
-|---|---|---|---|
-| `official` | `@openapitools/openapi-generator-cli` | Java 11+ | `official-parser.ts` (reads `apis/*.ts`) |
-| `heyapi` | `@hey-api/openapi-ts` | Node.js only | `heyapi-parser.ts` (reads `sdk.gen.ts` + `types.gen.ts`) |
-
-Both parsers (`src/generators/shared/parsers/`) produce identical `MethodInfo[]` output, so all downstream templates are shared and backend-agnostic.
+The shared parser reads the generated SDK entrypoints (`sdk.gen.ts` and `types.gen.ts`) and produces the `MethodInfo[]` consumed by all downstream templates.
 
 **Benefits**:
 
 - ✅ Leverage mature OpenAPI ecosystem
 - ✅ Don't reinvent OpenAPI parsing
-- ✅ No Java required when using heyapi backend
-- ✅ Templates work identically regardless of backend
+- ✅ Node-first generation with no Java dependency
+- ✅ One parser contract for all generators
 
 **Trade-offs**:
 
-- ⚠️ official backend depends on openapi-generator-cli staying stable
 - ⚠️ Must parse TypeScript (additional complexity)
 - ⚠️ Two-step process (slower than direct)
 

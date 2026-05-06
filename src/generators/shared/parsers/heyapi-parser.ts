@@ -265,9 +265,6 @@ function extractMethodInfo(
     pathParams,
     headers: opInfo.headers,
     description: opInfo.description,
-    hasRawMethod: false,
-    rawMethodName: undefined,
-    paramsShape: 'nested',
   };
 }
 

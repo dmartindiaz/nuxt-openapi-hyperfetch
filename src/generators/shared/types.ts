@@ -16,9 +16,6 @@ export interface MethodInfo {
   pathParams: string[]; // ['petId']
   headers: Record<string, string>; // Default headers
   description?: string; // Method description from comments
-  hasRawMethod: boolean; // true if xxxRaw method exists
-  rawMethodName?: string; // 'addPetRaw'
-  paramsShape?: 'flat' | 'nested'; // 'flat' for official generator, 'nested' for Hey API
 }
 
 export interface ApiClassInfo {

@@ -1,7 +1,6 @@
 import { defineNuxtModule, addImportsDir } from '@nuxt/kit';
-import { execSync } from 'child_process';
 import * as path from 'path';
-import { checkJavaInstalled } from '../generate.js';
+import { generateOpenApiFiles } from '../generate.js';
 import { generateUseFetchComposables } from '../generators/use-fetch/generator.js';
 import { generateUseAsyncDataComposables } from '../generators/use-async-data/generator.js';
 import { generateNuxtServerRoutes } from '../generators/nuxt-server/generator.js';
@@ -18,9 +17,8 @@ export default defineNuxtModule<ModuleOptions>({
   },
 
   defaults: {
-    output: './composables/api',
+    output: './openapi',
     generators: ['useFetch', 'useAsyncData'],
-    backend: 'heyapi',
     enableDevBuild: true,
     enableProductionBuild: true,
     enableAutoGeneration: false,
@@ -48,7 +46,6 @@ export default defineNuxtModule<ModuleOptions>({
     const selectedGenerators = normalized.composables;
     const generateConnectorsFlag = normalized.generateConnectors;
     const connectorsRequested = isConnectorsRequested(options);
-    const backend = options.backend ?? 'heyapi';
     const logger = createConsoleLogger();
 
     // --- Core generation function ---
@@ -56,28 +53,10 @@ export default defineNuxtModule<ModuleOptions>({
       logger.log.info('Generating OpenAPI composables...');
 
       // 1. Generate OpenAPI SDK files
-      if (backend === 'official') {
-        if (!checkJavaInstalled()) {
-          throw new Error(
-            '[nuxt-openapi-hyperfetch] Java not found. The official backend requires Java 11+.\n' +
-              'Install from: https://adoptium.net or set backend: "heyapi" in nuxt.config.ts'
-          );
-        }
-        execSync(
-          `npx @openapitools/openapi-generator-cli generate -i "${resolvedInput}" -g typescript-fetch -o "${resolvedOutput}"`,
-          { stdio: 'inherit' }
-        );
-      } else {
-        const { createClient } = await import('@hey-api/openapi-ts');
-        await createClient({
-          input: resolvedInput,
-          output: resolvedOutput,
-          plugins: ['@hey-api/typescript', '@hey-api/sdk'],
-        });
-      }
+      await generateOpenApiFiles(resolvedInput, resolvedOutput);
 
       // 2. Run selected composable generators
-      const genOptions = { backend };
+      const genOptions = options.baseUrl ? { baseUrl: options.baseUrl } : undefined;
 
       if (selectedGenerators.includes('useFetch')) {
         await generateUseFetchComposables(
@@ -105,7 +84,7 @@ export default defineNuxtModule<ModuleOptions>({
         await generateNuxtServerRoutes(
           resolvedOutput,
           serverRoutePath,
-          { enableBff: options.enableBff, backend },
+          { enableBff: options.enableBff },
           logger
         );
       }

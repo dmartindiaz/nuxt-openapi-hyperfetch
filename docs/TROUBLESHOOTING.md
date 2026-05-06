@@ -81,28 +81,26 @@ npm run build
 **Symptom:**
 
 ```
-Error: APIs directory not found: ./swagger/apis
+Error: Hey API output not found: ./openapi/sdk.gen.ts
 ```
 
-**Cause**: Output directory doesn't contain OpenAPI-generated files
+**Cause**: The output directory does not contain the generated OpenAPI SDK files.
 
 **Solution:**
 
 ```bash
-# Generate OpenAPI files first
-npx @openapitools/openapi-generator-cli generate \
-  -i swagger.yaml \
-  -g typescript-fetch \
-  -o ./swagger
+# Generate the SDK first
+npx @hey-api/openapi-ts -i swagger.yaml -o ./openapi
 
-# Then generate composables
-node dist/index.js generate -i ./swagger -o ./output
+# Then generate composables or run the module workflow
+node dist/index.js generate -i ./swagger.yaml -o ./openapi
 ```
 
-**Note**: The tool expects **TWO** directories:
+**Expected SDK files:**
 
-- **Input**: OpenAPI Generator output (e.g., `./swagger`)
-- **Output**: Where composables will be written (e.g., `./output`)
+- `sdk.gen.ts`
+- `types.gen.ts`
+- `client.gen.ts`
 
 ---
 
@@ -111,52 +109,41 @@ node dist/index.js generate -i ./swagger -o ./output
 **Symptom:**
 
 ```
-✓ Parsed PetApi
-  Found 0 methods in PetApi
+Found 0 methods to generate
 ```
 
-**Cause**: Parser can't find `xxxRequestOpts()` methods
+**Cause**: The parser could not extract operations from `sdk.gen.ts` and `types.gen.ts`
 
 **Debug Steps:**
 
-1. **Check Generated API File**:
+1. **Check generated SDK files**:
 
 ```bash
-cat swagger/apis/PetApi.ts | grep RequestOpts
+Get-ChildItem .\openapi
 ```
 
-Should see methods like:
+You should see at least:
 
-```typescript
-async addPetRequestOpts(params: AddPetRequest): Promise<RequestOpts> { ... }
+```text
+sdk.gen.ts
+types.gen.ts
+client.gen.ts
 ```
 
-2. **Verify OpenAPI Generator Version**:
-
-```bash
-npx @openapitools/openapi-generator-cli version
-```
-
-Recommended: `7.14.0`
-
-3. **Check TypeScript Syntax**:
+2. **Check TypeScript syntax**:
 
 ```bash
 # Install ts-morph globally
 npm install -g ts-morph
 
 # Parse file
-ts-morph parse swagger/apis/PetApi.ts
+ts-morph parse openapi/types.gen.ts
 ```
 
-**Solution**: Regenerate with correct OpenAPI Generator version:
+**Solution**: Regenerate the SDK and retry:
 
 ```bash
-npx @openapitools/openapi-generator-cli generate \
-  -i swagger.yaml \
-  -g typescript-fetch \
-  -o ./swagger \
-  --additional-properties=supportsES6=true
+npx @hey-api/openapi-ts -i swagger.yaml -o ./openapi
 ```
 
 ---
@@ -209,7 +196,7 @@ const requestType =
 **Symptom:**
 
 ```
-Error: ENOENT: no such file or directory, scandir './swagger/apis'
+Error: ENOENT: no such file or directory, open './openapi/sdk.gen.ts'
 ```
 
 **Cause**: Wrong input directory path
@@ -218,13 +205,13 @@ Error: ENOENT: no such file or directory, scandir './swagger/apis'
 
 ```bash
 # Check directory exists
-ls ./swagger/apis
+ls ./openapi
 
-# If not, check OpenAPI output location
-ls ./swagger
+# If not, regenerate the SDK
+npx @hey-api/openapi-ts -i swagger.yaml -o ./openapi
 
 # Use absolute path
-node dist/index.js generate -i $(pwd)/swagger -o ./output
+node dist/index.js generate -i swagger.yaml -o $(pwd)/openapi
 ```
 
 ---
@@ -863,11 +850,11 @@ npx nuxt-openapi-hyperfetch --version
 npm run build -- --verbose
 
 # Check generated files
-ls -R swagger/
-ls -R output/composables/
+ls -R openapi/
+ls -R openapi/composables/
 
 # Validate OpenAPI spec
-npx @openapitools/openapi-generator-cli validate -i swagger.yaml
+npx @hey-api/openapi-ts -i swagger.yaml -o ./openapi
 
 # Check TypeScript compilation
 npx tsc --noEmit
