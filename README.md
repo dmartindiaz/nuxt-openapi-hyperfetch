@@ -22,14 +22,20 @@
 Install the module in your Nuxt project.
 
 ```bash
-npm install nuxt-openapi-hyperfetch zod
+npm install nuxt-openapi-hyperfetch
+```
+
+If you use `connectors`, also install `zod`:
+
+```bash
+npm install zod
 ```
 
 Peer dependencies:
 
 - Nuxt 3 or 4
 - `@nuxt/kit`
-- `zod`
+- `zod` when using `connectors`
 
 ## What It Generates
 
