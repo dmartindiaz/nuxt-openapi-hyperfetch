@@ -1,6 +1,6 @@
 {
   "name": "nuxt-openapi-hyperfetch",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Nuxt module for generating an OpenAPI SDK, composables, server routes, and headless CRUD connectors.",
   "type": "module",
   "author": "",
@@ -46,7 +46,7 @@
   "peerDependencies": {
     "@nuxt/kit": "^3.0.0 || ^4.0.0",
     "nuxt": "^3.0.0 || ^4.0.0",
-    "zod": "^3.0.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
