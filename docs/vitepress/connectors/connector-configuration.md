@@ -69,10 +69,12 @@ When connectors are requested, the module internally ensures `useAsyncData` gene
 
 It works like this:
 
-- start from inferred resources discovered from the spec
+- start from strictly inferred canonical CRUD resources discovered from the spec
 - apply explicit overrides for matching resources
 - add custom resources that exist only in config
 - keep inferred operations that were not overridden
+
+Important: `hybrid` no longer guesses from helper routes such as `GET /user/login` or `GET /pet/findByTags`. If the default inference cannot prove an operation is canonical CRUD, that operation is omitted and a warning is logged.
 
 ## `manual`
 
@@ -108,6 +110,17 @@ For ambiguous matches, resolver preferences are:
 - `get`: prefer endpoints detected as `detail`
 - `update`: prefer `PUT` over `PATCH`
 
+These preferences only apply after you opt into a manual mapping with `operationId` or `path`. They are not used by the automatic CRUD inference pass anymore.
+
+## Missing-operation warnings
+
+During generation, missing inferred operations produce warnings such as:
+
+- `useUsersConnector has no getAll operation inferred. Add it manually via connectors.resources.user.operations.getAll if needed.`
+- `useStoresConnector has no update operation inferred. Add it manually via connectors.resources.store.operations.update if needed.`
+
+Those warnings are informational. Generation continues and emits the connector with the operations that were inferred successfully.
+
 ## Example: `hybrid`
 
 ```ts
@@ -129,6 +142,11 @@ export default defineNuxtConfig({
             delete: { operationId: 'deletePet' },
           },
         },
+        userSessions: {
+          operations: {
+            getAll: { operationId: 'loginUser' },
+          },
+        },
         featuredPets: {
           operations: {
             getAll: { operationId: 'findPetsByTags' },
@@ -144,6 +162,7 @@ export default defineNuxtConfig({
 In `hybrid` mode:
 
 - `pets` overrides the inferred mapping for that resource
+- `userSessions` deliberately exposes a non-canonical helper route as a connector
 - `featuredPets` is added as an extra configured resource
 - non-overridden inferred operations remain available
 
@@ -164,6 +183,14 @@ export default defineNuxtConfig({
             get: { path: '/pet/{petId}' },
           },
         },
+        users: {
+          operations: {
+            get: { path: '/user/{username}' },
+            create: { path: '/user' },
+            update: { path: '/user/{username}' },
+            delete: { path: '/user/{username}' },
+          },
+        },
       },
     },
   },
@@ -173,7 +200,8 @@ export default defineNuxtConfig({
 In `manual` mode:
 
 - only `pets` is generated
-- only the configured operations are defined for that resource
+- only the configured operations are defined for each resource
+- this is the safest mode when your API does not follow canonical REST shapes consistently
 
 ## Backward compatibility
 
@@ -190,3 +218,5 @@ Connector generation fails before file emission when config is invalid. Common f
 - unknown `operationId`
 - unknown `path`
 - path exists but does not expose a compatible HTTP method
+
+Validation does not fail just because an inferred operation is missing. That case produces a warning and leaves the connector partial until you add an explicit override.

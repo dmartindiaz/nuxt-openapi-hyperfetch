@@ -30,8 +30,8 @@ export interface ModuleOptions extends GeneratorConfig {
   enableAutoImport?: boolean;
 
   /**
-   * Backward-compatible connectors flag.
-    * Prefer `generators: ['connectors']` so the module stays declarative.
+   * Backward-compatible connectors flag
+   * Prefer `generators: ['connectors']` so the module stays declarative
    * When true, connectors are generated and useAsyncData is added automatically.
    * @default false
    */

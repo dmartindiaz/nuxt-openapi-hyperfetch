@@ -14,6 +14,9 @@ export default defineNuxtModule<ModuleOptions>({
   meta: {
     name: 'nuxt-openapi-hyperfetch',
     configKey: 'openapi',
+    compatibility: {
+      nuxt: '>=3.0.0',
+    },
   },
 
   defaults: {

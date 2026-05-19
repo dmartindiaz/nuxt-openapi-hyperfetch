@@ -1,6 +1,6 @@
 {
   "name": "nuxt-openapi-hyperfetch",
-  "version": "2.0.1",
+  "version": "2.0.4",
   "description": "Nuxt module for generating an OpenAPI SDK, composables, server routes, and headless CRUD connectors.",
   "type": "module",
   "author": "",
@@ -31,6 +31,7 @@
     "build": "tsc",
     "dev:generate": "tsx ./scripts/dev-generate.ts all",
     "dev:generate:all": "tsx ./scripts/dev-generate.ts all",
+    "dev:generate:connectors": "tsx ./scripts/dev-generate.ts connectors",
     "dev:generate:help": "tsx ./scripts/dev-generate.ts help",
     "dev:generate:openapi": "tsx ./scripts/dev-generate.ts openapi",
     "dev:generate:use-fetch": "tsx ./scripts/dev-generate.ts use-fetch",

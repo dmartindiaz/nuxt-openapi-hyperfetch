@@ -1,13 +1,14 @@
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { generateOpenApiFiles } from '../src/generate.ts';
+import { generateConnectors } from '../src/generators/connectors/generator.ts';
 import { generateUseFetchComposables } from '../src/generators/use-fetch/generator.ts';
 import { generateUseAsyncDataComposables } from '../src/generators/use-async-data/generator.ts';
 import { createConsoleLogger, logError, logInfo, logSuccess } from '../src/utils/logger.ts';
 
 const DEFAULT_DEV_OPENAPI_FILES = ['dev-openapi.json', 'dev-openapi.yaml', 'dev-openapi.yml'] as const;
 
-type DevCommand = 'openapi' | 'use-fetch' | 'use-async-data' | 'all' | 'help';
+type DevCommand = 'openapi' | 'use-fetch' | 'use-async-data' | 'connectors' | 'all' | 'help';
 
 interface DevOptions {
   input?: string;
@@ -36,6 +37,7 @@ Usage:
   npm run dev:generate:openapi
   npm run dev:generate:use-fetch
   npm run dev:generate:use-async-data
+  npm run dev:generate:connectors
 
 Extra args:
   --input <path>       OpenAPI spec path. Default: first match of ./dev-openapi.json, ./dev-openapi.yaml, ./dev-openapi.yml
@@ -47,6 +49,7 @@ Examples:
   npm run dev:generate:use-fetch -- --skip-openapi
   npm run dev:generate:all -- --input ./dev-openapi.json --output ./openapi
   npm run dev:generate:use-async-data -- --base-url https://api.example.com
+  npm run dev:generate:connectors -- --skip-openapi
 `);
 }
 
@@ -55,6 +58,7 @@ function parseCommand(raw?: string): DevCommand {
     case 'openapi':
     case 'use-fetch':
     case 'use-async-data':
+    case 'connectors':
     case 'all':
       return raw;
     case undefined:
@@ -142,11 +146,24 @@ async function run() {
     );
   }
 
-  if (command === 'use-async-data' || command === 'all') {
+  if (command === 'use-async-data' || command === 'connectors' || command === 'all') {
     await generateUseAsyncDataComposables(
       outputPath,
       path.join(outputPath, 'composables', 'use-async-data'),
       generateOptions,
+      logger
+    );
+  }
+
+  if (command === 'connectors' || command === 'all') {
+    await generateConnectors(
+      {
+        inputSpec: inputPath,
+        outputDir: path.join(outputPath, 'composables', 'connectors'),
+        composablesRelDir: '../use-async-data/composables',
+        runtimeRelDir: '../../runtime',
+        baseUrl: options.baseUrl,
+      },
       logger
     );
   }

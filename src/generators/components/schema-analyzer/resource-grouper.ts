@@ -7,6 +7,21 @@ import {
   mapColumnsFromSchema,
 } from './schema-field-mapper.js';
 
+type CrudOperation = 'list' | 'detail' | 'create' | 'update' | 'delete';
+
+interface CrudCandidate {
+  operation: CrudOperation;
+  collectionPath: string;
+  endpoint: EndpointInfo;
+}
+
+interface ResourceFamily {
+  collectionPath: string;
+  groupKey: string;
+  assignedEndpoints: EndpointInfo[];
+  candidates: CrudCandidate[];
+}
+
 // ─── Naming helpers ───────────────────────────────────────────────────────────
 
 /**
@@ -22,6 +37,10 @@ function toConnectorName(tag: string): string {
   return `use${plural}Connector`;
 }
 
+function toPathConnectorName(resourceName: string): string {
+  return `use${pascalCase(resourceName)}Connector`;
+}
+
 /**
  * Primary grouping key for an endpoint: first tag, or path prefix as fallback.
  * '/pets/{id}' → 'pets'
@@ -35,19 +54,200 @@ function tagOrPrefix(endpoint: EndpointInfo): string {
   return segment ?? 'unknown';
 }
 
-// ─── Pick the "best" endpoint for each intent ─────────────────────────────────
+function splitPathSegments(path: string): string[] {
+  return path.split('/').filter(Boolean);
+}
 
-/**
- * When a resource has multiple endpoints with the same intent, pick the
- * simplest one (fewest path params, then shortest path).
- *
- * Example: if both GET /pets and GET /users/{id}/pets detect as 'list',
- * we prefer GET /pets (0 path params, shorter path).
- */
-function pickBest(endpoints: EndpointInfo[]): EndpointInfo {
-  return endpoints.sort(
-    (a, b) => a.pathParams.length - b.pathParams.length || a.path.length - b.path.length
-  )[0];
+function isPathParam(segment: string): boolean {
+  return /^\{[^}]+\}$/.test(segment);
+}
+
+function isCollectionPath(path: string): boolean {
+  const segments = splitPathSegments(path);
+  return segments.length > 0 && !isPathParam(segments[segments.length - 1]);
+}
+
+function getCollectionPathFromMember(path: string): string | undefined {
+  const segments = splitPathSegments(path);
+  if (segments.length < 2) {
+    return undefined;
+  }
+
+  const last = segments[segments.length - 1];
+  const previous = segments[segments.length - 2];
+
+  if (!isPathParam(last) || isPathParam(previous)) {
+    return undefined;
+  }
+
+  return `/${segments.slice(0, -1).join('/')}`;
+}
+
+function isObjectLikeSchema(schema?: EndpointInfo['responseSchema']): boolean {
+  if (!schema) {
+    return false;
+  }
+
+  return Boolean(
+    schema.type === 'object' ||
+      schema.properties ||
+      schema['x-ref-name'] ||
+      schema.allOf ||
+      schema.oneOf ||
+      schema.anyOf
+  );
+}
+
+function isArrayOfObjectsSchema(schema?: EndpointInfo['responseSchema']): boolean {
+  if (!schema || !schema.items) {
+    return false;
+  }
+
+  return isObjectLikeSchema(schema.items);
+}
+
+function detectCrudCandidate(endpoint: EndpointInfo): CrudCandidate | undefined {
+  const memberCollectionPath = getCollectionPathFromMember(endpoint.path);
+
+  if (endpoint.method === 'GET' && memberCollectionPath && isObjectLikeSchema(endpoint.responseSchema)) {
+    return {
+      operation: 'detail',
+      collectionPath: memberCollectionPath,
+      endpoint,
+    };
+  }
+
+  if ((endpoint.method === 'PUT' || endpoint.method === 'PATCH') && memberCollectionPath) {
+    return {
+      operation: 'update',
+      collectionPath: memberCollectionPath,
+      endpoint,
+    };
+  }
+
+  if (endpoint.method === 'DELETE' && memberCollectionPath) {
+    return {
+      operation: 'delete',
+      collectionPath: memberCollectionPath,
+      endpoint,
+    };
+  }
+
+  if (endpoint.method === 'GET' && isCollectionPath(endpoint.path) && isArrayOfObjectsSchema(endpoint.responseSchema)) {
+    return {
+      operation: 'list',
+      collectionPath: endpoint.path,
+      endpoint,
+    };
+  }
+
+  if (endpoint.method === 'POST' && isCollectionPath(endpoint.path)) {
+    return {
+      operation: 'create',
+      collectionPath: endpoint.path,
+      endpoint,
+    };
+  }
+
+  return undefined;
+}
+
+function isPathWithinCollection(path: string, collectionPath: string): boolean {
+  return path === collectionPath || path.startsWith(`${collectionPath}/`);
+}
+
+function resourceNameFromCollectionPath(collectionPath: string): string {
+  const literals = splitPathSegments(collectionPath).filter((segment) => !isPathParam(segment));
+  return literals.join('-') || 'resource';
+}
+
+function selectOperationCandidate(
+  candidates: CrudCandidate[]
+): EndpointInfo | undefined {
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  const distinctPaths = new Set(candidates.map((candidate) => candidate.endpoint.path));
+  if (distinctPaths.size > 1) {
+    return undefined;
+  }
+
+  return candidates[0].endpoint;
+}
+
+function selectUpdateCandidate(candidates: CrudCandidate[]): EndpointInfo | undefined {
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  const distinctPaths = new Set(candidates.map((candidate) => candidate.endpoint.path));
+  if (distinctPaths.size > 1) {
+    return undefined;
+  }
+
+  const putCandidate = candidates.find((candidate) => candidate.endpoint.method === 'PUT');
+  return putCandidate?.endpoint ?? candidates[0].endpoint;
+}
+
+function inferResourceFamilies(allEndpoints: EndpointInfo[]): Map<string, ResourceFamily> {
+  const candidates = allEndpoints
+    .map((endpoint) => detectCrudCandidate(endpoint))
+    .filter((candidate): candidate is CrudCandidate => Boolean(candidate));
+
+  const anchoredCollectionPaths = new Set(
+    candidates
+      .filter((candidate) => ['detail', 'update', 'delete'].includes(candidate.operation))
+      .map((candidate) => candidate.collectionPath)
+  );
+
+  const families = new Map<string, ResourceFamily>();
+
+  for (const candidate of candidates) {
+    if (!anchoredCollectionPaths.has(candidate.collectionPath)) {
+      continue;
+    }
+
+    if (!families.has(candidate.collectionPath)) {
+      families.set(candidate.collectionPath, {
+        collectionPath: candidate.collectionPath,
+        groupKey: tagOrPrefix(candidate.endpoint),
+        assignedEndpoints: [],
+        candidates: [],
+      });
+    }
+
+    families.get(candidate.collectionPath)!.candidates.push(candidate);
+  }
+
+  const familiesByGroup = new Map<string, ResourceFamily[]>();
+  for (const family of families.values()) {
+    const list = familiesByGroup.get(family.groupKey) ?? [];
+    list.push(family);
+    familiesByGroup.set(family.groupKey, list);
+  }
+
+  for (const endpoint of allEndpoints) {
+    const groupKey = tagOrPrefix(endpoint);
+    const groupFamilies = familiesByGroup.get(groupKey) ?? [];
+
+    if (groupFamilies.length === 0) {
+      continue;
+    }
+
+    if (groupFamilies.length === 1) {
+      groupFamilies[0].assignedEndpoints.push(endpoint);
+      continue;
+    }
+
+    const bestMatch = [...groupFamilies]
+      .filter((family) => isPathWithinCollection(endpoint.path, family.collectionPath))
+      .sort((a, b) => b.collectionPath.length - a.collectionPath.length)[0];
+
+    (bestMatch ?? groupFamilies[0]).assignedEndpoints.push(endpoint);
+  }
+
+  return families;
 }
 
 // ─── Main grouper ─────────────────────────────────────────────────────────────
@@ -69,27 +269,38 @@ export function buildResourceMap(spec: OpenApiSpec): ResourceMap {
     allEndpoints.push(...endpoints);
   }
 
-  // 2. Group by tag / prefix
-  const groups = new Map<string, EndpointInfo[]>();
-  for (const ep of allEndpoints) {
-    const key = tagOrPrefix(ep);
-    if (!groups.has(key)) {
-      groups.set(key, []);
-    }
-    groups.get(key)!.push(ep);
+  // 2. Infer canonical CRUD families
+  const families = inferResourceFamilies(allEndpoints);
+  const familiesByGroup = new Map<string, ResourceFamily[]>();
+  for (const family of families.values()) {
+    const list = familiesByGroup.get(family.groupKey) ?? [];
+    list.push(family);
+    familiesByGroup.set(family.groupKey, list);
   }
 
-  // 3. Build one ResourceInfo per group
+  // 3. Build one ResourceInfo per inferred family
   const resourceMap: ResourceMap = new Map();
 
-  for (const [tag, endpoints] of groups) {
-    const byIntent = groupByIntent(endpoints);
+  for (const family of families.values()) {
+    const listEp = selectOperationCandidate(
+      family.candidates.filter((candidate) => candidate.operation === 'list')
+    );
+    const detailEp = selectOperationCandidate(
+      family.candidates.filter((candidate) => candidate.operation === 'detail')
+    );
+    const createEp = selectOperationCandidate(
+      family.candidates.filter((candidate) => candidate.operation === 'create')
+    );
+    const updateEp = selectUpdateCandidate(
+      family.candidates.filter((candidate) => candidate.operation === 'update')
+    );
+    const deleteEp = selectOperationCandidate(
+      family.candidates.filter((candidate) => candidate.operation === 'delete')
+    );
 
-    const listEp = byIntent.list ? pickBest(byIntent.list) : undefined;
-    const detailEp = byIntent.detail ? pickBest(byIntent.detail) : undefined;
-    const createEp = byIntent.create ? pickBest(byIntent.create) : undefined;
-    const updateEp = byIntent.update ? pickBest(byIntent.update) : undefined;
-    const deleteEp = byIntent.delete ? pickBest(byIntent.delete) : undefined;
+    if (!listEp && !detailEp && !createEp && !updateEp && !deleteEp) {
+      continue;
+    }
 
     // Infer columns from list > detail response schema
     const schemaForColumns = listEp?.responseSchema ?? detailEp?.responseSchema;
@@ -110,8 +321,6 @@ export function buildResourceMap(spec: OpenApiSpec): ResourceMap {
       ? buildZodSchema(updateEp.requestBodySchema)
       : undefined;
 
-    const resourceName = pascalCase(tag);
-
     // Infer the SDK model type name from the original $ref component name.
     // Priority: detail response > list items > list response (may be envelope object).
     const itemTypeName =
@@ -120,12 +329,20 @@ export function buildResourceMap(spec: OpenApiSpec): ResourceMap {
       (listEp?.responseSchema as any)?.['x-ref-name'] ??
       undefined;
 
+    const isSingleFamilyForGroup = (familiesByGroup.get(family.groupKey)?.length ?? 0) === 1;
+    const resourceKeyName = isSingleFamilyForGroup
+      ? family.groupKey
+      : resourceNameFromCollectionPath(family.collectionPath);
+    const resourceName = pascalCase(resourceKeyName);
+
     const info: ResourceInfo = {
       name: resourceName,
-      tag,
-      composableName: toConnectorName(tag),
+      tag: resourceKeyName,
+      composableName: isSingleFamilyForGroup
+        ? toConnectorName(resourceKeyName)
+        : toPathConnectorName(resourceKeyName),
       itemTypeName,
-      endpoints,
+      endpoints: family.assignedEndpoints,
       listEndpoint: listEp,
       detailEndpoint: detailEp,
       createEndpoint: createEp,
@@ -142,34 +359,9 @@ export function buildResourceMap(spec: OpenApiSpec): ResourceMap {
       },
     };
 
-    // Map key uses camelCase of the tag (e.g. 'petStore') to be a valid JS identifier.
-    // resource.name uses PascalCase ('PetStore') for use in type/class names.
-    // resource.tag preserves the original casing from the spec ('petStore' or 'pet_store').
-    resourceMap.set(camelCase(tag), info);
+    // Map key uses camelCase of the public resource key so it stays stable in config.
+    resourceMap.set(camelCase(resourceKeyName), info);
   }
 
   return resourceMap;
-}
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-type IntentGroups = Partial<Record<EndpointInfo['intent'], EndpointInfo[]>>;
-
-/**
- * Group endpoints by their detected intent.
- * Endpoints with intent 'unknown' (e.g. custom actions like POST /pets/{id}/upload)
- * are silently skipped — they do not map to a standard CRUD connector.
- */
-function groupByIntent(endpoints: EndpointInfo[]): IntentGroups {
-  const result: IntentGroups = {};
-  for (const ep of endpoints) {
-    if (ep.intent === 'unknown') {
-      continue;
-    }
-    if (!result[ep.intent]) {
-      result[ep.intent] = [];
-    }
-    result[ep.intent]!.push(ep);
-  }
-  return result;
 }

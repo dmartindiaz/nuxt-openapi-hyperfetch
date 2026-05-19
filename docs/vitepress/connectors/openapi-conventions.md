@@ -1,82 +1,76 @@
 # OpenAPI Conventions
 
-Connector generation depends on detected CRUD intent. The closer the spec is to standard REST shapes, the less manual configuration is needed.
+Connector generation now uses a strict CRUD inference pass. The default behavior is conservative on purpose: if the generator cannot prove that an endpoint belongs to a canonical REST resource, it does not generate that connector operation automatically.
 
-## Intent detection
+## Canonical CRUD inference
 
-Each endpoint is classified as one of these intents:
+Automatic connector inference follows these path conventions:
 
-- `list`
-- `detail`
-- `create`
-- `update`
-- `delete`
-- `unknown`
-
-The detector uses:
-
-1. `x-openapi-intent` if present on the operation
-2. otherwise HTTP method, path shape, and success response schema
-
-```yaml
-x-openapi-intent: list | detail | create | update | delete | unknown
-```
-
-## Detection rules
-
-| Method | Shape | Result |
+| Connector op | Canonical shape | Extra rule |
 |---|---|---|
-| `DELETE` | any | `delete` |
-| `POST` | path does not end with a path param | `create` |
-| `POST` | path ends with a path param | `unknown` |
-| `PUT` | any | `update` |
-| `PATCH` | any | `update` |
-| `GET` | JSON array response | `list` |
-| `GET` | JSON object response and path has a path param | `detail` |
-| `GET` | JSON object response and path has no path param | `list` |
-| `GET` | no JSON success response | `unknown` |
+| `getAll` | `GET /resources` | success response must be an array of objects |
+| `get` | `GET /resources/{id}` | success response must look like a single object |
+| `create` | `POST /resources` | collection path only |
+| `update` | `PUT /resources/{id}` or `PATCH /resources/{id}` | member path only |
+| `delete` | `DELETE /resources/{id}` | member path only |
 
-Endpoints classified as `unknown` are ignored by connector grouping.
+The same rules apply to nested resources:
 
-## Resource grouping
+| Connector op | Nested shape |
+|---|---|
+| `getAll` | `GET /users/{userId}/customers` |
+| `get` | `GET /users/{userId}/customers/{customerId}` |
+| `create` | `POST /users/{userId}/customers` |
+| `update` | `PUT /users/{userId}/customers/{customerId}` |
+| `delete` | `DELETE /users/{userId}/customers/{customerId}` |
 
-Endpoints are grouped by:
+## What is intentionally ignored
 
-- the first tag, when tags exist
-- otherwise the first non-parameter path segment
+These shapes are not treated as canonical CRUD by default:
 
-So these operations typically end up in the same connector:
+- action routes such as `POST /pets/{id}/publish`
+- utility routes such as `GET /user/login` or `GET /user/logout`
+- search/filter helper routes such as `GET /pet/findByStatus`
+- collection-like GET routes that do not return an array of objects
+- ambiguous resources where multiple candidate endpoints compete for the same CRUD slot
 
-```yaml
-/pet:
-  get:
-    tags: [pet]
-  post:
-    tags: [pet]
+When one of those routes is useful for your UI, map it manually in `connectors.resources`.
 
-/pet/{petId}:
-  get:
-    tags: [pet]
-  put:
-    tags: [pet]
-  delete:
-    tags: [pet]
-```
+## Resource identity
 
-That resource becomes `usePetsConnector()`.
+The connector resource is anchored to the canonical collection path, not to whichever tagged route happens to be shortest.
 
-## Best-endpoint selection
+Examples:
 
-If a resource has multiple endpoints for the same intent, the generator prefers the simplest one:
+- `/user` + `/user/{username}` -> `useUsersConnector()`
+- `/users/{userId}/customers` + `/users/{userId}/customers/{customerId}` -> a customers connector for that nested collection
 
-- fewer path params first
-- then shorter path length
+Tags are still useful metadata, but they no longer allow non-REST helper routes to become `getAll` automatically just because they share the same tag.
 
-This matters when a spec exposes both a generic resource path and a nested alternative.
+## Ambiguity policy
+
+When there is doubt, the generator skips the operation instead of guessing.
+
+Examples:
+
+- two different `GET /resource`-style list candidates under the same resource
+- a `GET` route that looks collection-shaped but returns a scalar or map
+- a resource that has `get` and `delete` but no canonical list route
+
+This means the generated connector may expose only part of CRUD. That is expected.
+
+## Console warnings
+
+When an operation cannot be inferred, the generator logs a warning in English so the missing piece is visible during generation.
+
+Example warnings:
+
+- `useUsersConnector has no getAll operation inferred. Add it manually via connectors.resources.user.operations.getAll if needed.`
+- `usePetsConnector has no update operation inferred. Add it manually via connectors.resources.pet.operations.update if needed.`
 
 ## Response and schema inference
 
-From the grouped endpoints, the analyzer derives:
+From the inferred endpoints, the generator derives:
 
 - columns from `list` response schema first, then `detail`
 - form fields from `create` and `update` request bodies
@@ -105,18 +99,39 @@ These shapes map cleanly to connector generation:
     operationId: deletePet
 ```
 
+And for nested resources:
+
+```yaml
+/users/{userId}/customers:
+  get:
+    operationId: listUserCustomers
+  post:
+    operationId: createUserCustomer
+
+/users/{userId}/customers/{customerId}:
+  get:
+    operationId: getUserCustomer
+  put:
+    operationId: updateUserCustomer
+  delete:
+    operationId: deleteUserCustomer
+```
+
 ## Non-standard patterns
 
 These shapes usually need overrides or manual config:
 
 - `POST /pets/{id}` used as update
+- `GET /user/login` used as session helper
+- `GET /store/inventory` returning a map instead of an array of entities
+- `GET /pet/findByStatus` or `GET /pet/findByTags` used as filtered list helpers
 - action-style paths such as `POST /pets/{id}/publish`
-- missing tags on a large spec with repeated path prefixes
-- missing `operationId` values on list endpoints
+- multiple alternate routes competing for the same CRUD slot
+- missing `operationId` values on manually-mapped operations
 
 ## `operationId` guidance
 
-List endpoints are especially sensitive to `operationId`, because the generated connector imports the corresponding `useAsyncData{Operation}` composable by name.
+Manually mapped list endpoints are especially sensitive to `operationId`, because the generated connector imports the corresponding `useAsyncData{Operation}` composable by name.
 
 If `operationId` is missing, the analyzer generates a fallback name from method and path. That still works, but the generated symbol names are much noisier.
 

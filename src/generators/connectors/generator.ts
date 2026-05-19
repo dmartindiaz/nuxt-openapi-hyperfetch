@@ -61,6 +61,26 @@ export async function generateConnectors(
   const resourceMap = resolveConnectorResourceMap(baseResourceMap, options.connectorsConfig);
   spinner.stop(`Found ${resourceMap.size} resource(s)`);
 
+  for (const [resourceKey, resource] of resourceMap.entries()) {
+    const operations: Array<[string, unknown]> = [
+      ['getAll', resource.listEndpoint],
+      ['get', resource.detailEndpoint],
+      ['create', resource.createEndpoint],
+      ['update', resource.updateEndpoint],
+      ['delete', resource.deleteEndpoint],
+    ];
+
+    for (const [operationName, endpoint] of operations) {
+      if (endpoint) {
+        continue;
+      }
+
+      logger.log.warn(
+        `${resource.composableName} has no ${operationName} operation inferred. Add it manually via connectors.resources.${resourceKey}.operations.${operationName} if needed.`
+      );
+    }
+  }
+
   if (resourceMap.size === 0) {
     logger.log.warn('No resources found in spec — nothing to generate');
     return;
